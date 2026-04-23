@@ -8,6 +8,12 @@ export type AuthUser = {
   role: "admin" | "gerente" | "operador";
   active: boolean;
   team_id: number | null;
+  team?: {
+    id: number;
+    name: string;
+    sector: string;
+    active: boolean;
+  } | null;
   created_at: string;
 };
 
@@ -45,4 +51,8 @@ export function saveSession(session: AuthSession): void {
 
 export function clearSession(): void {
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+export function canAccessAdminModules(role: AuthUser["role"] | undefined): boolean {
+  return role === "admin" || role === "gerente";
 }

@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.user import UserRole
+from app.schemas.common import TeamSummary
 
 
 class LoginRequest(BaseModel):
@@ -20,6 +21,7 @@ class UserProfile(BaseModel):
     role: UserRole
     active: bool
     team_id: int | None
+    team: TeamSummary | None = None
     created_at: datetime
 
 

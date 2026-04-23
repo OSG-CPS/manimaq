@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, protected
+from app.api.routes import auth, equipments, protected, teams, users
 from app.core.config import settings
 from app.db.session import init_db
 
@@ -31,3 +31,6 @@ def healthcheck() -> dict[str, str]:
 
 app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(protected.router, prefix=settings.api_prefix)
+app.include_router(teams.router, prefix=settings.api_prefix)
+app.include_router(equipments.router, prefix=settings.api_prefix)
+app.include_router(users.router, prefix=settings.api_prefix)
