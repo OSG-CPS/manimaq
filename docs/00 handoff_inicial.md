@@ -248,17 +248,18 @@ Como ponto de partida, o Codex pode assumir:
 
 ### Stack sugerida
 
-Pode seguir qualquer stack web moderna.
-Sugestão simples para produtividade:
+Para manter boa produtividade e simplicidade de implementação, a sugestão é:
 
 * **Frontend**: React / Next.js
-* **Backend**: Node.js + NestJS ou Express
-* **Banco**: PostgreSQL
-* **ORM**: Prisma ou TypeORM
+* **Backend**: Python com **FastAPI**
+* **Servidor ASGI**: **Uvicorn**
+* **Banco de dados**: **SQLite**
+* **ORM**: SQLAlchemy ou SQLModel
 
 Se quiser máxima simplicidade:
 
-* frontend + backend fullstack no mesmo projeto.
+* **frontend + backend no mesmo repositório**, com separação por pastas e APIs bem definidas.
+
 
 ---
 

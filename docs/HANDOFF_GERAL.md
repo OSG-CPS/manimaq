@@ -1,0 +1,257 @@
+# HANDOFF GERAL
+
+## 1. Objetivo deste documento
+
+Este documento serve como contexto-base para abertura de novas threads no Codex durante o desenvolvimento do MVP do sistema de manutenção de máquinas industriais.
+
+Cada sprint deve ser executada em uma thread nova.
+Ao final de cada sprint, a thread responsável deve devolver um handoff de saída com:
+
+- o que foi implementado
+- o que ficou parcial
+- o que não foi iniciado
+- estado atual do projeto
+- pendências, riscos e decisões tomadas
+- arquivos principais alterados
+- instruções para continuidade
+
+Esse handoff de saída será trazido de volta para a thread principal de planejamento, onde a sprint seguinte será preparada.
+
+---
+
+## 2. Fontes oficiais do projeto
+
+Antes de iniciar qualquer sprint, considerar como referência principal os arquivos:
+
+- `docs/00 handoff_inicial.md`
+- `docs/01 product_backlog_inicial.md`
+- `docs/02 definições_da_equipe.md`
+- `docs/03 sprints de programação.md`
+- `docs/04 sprints detalhadas.md`
+
+Este `HANDOFF_GERAL.md` consolida as decisões mais recentes e deve ser usado como ponto de partida entre threads.
+
+---
+
+## 3. Visão do produto
+
+Sistema web responsivo, para uso em rede local, acessível por desktop e celular, com foco em:
+
+- cadastro de usuários, equipes e equipamentos
+- registro de ocorrências e medições
+- criação e acompanhamento de ordens de serviço
+- dashboard com KPIs
+- relatórios com apoio de IA
+- alertas híbridos com regras e análise por IA
+
+---
+
+## 4. Escopo do MVP
+
+O MVP deve permitir:
+
+- autenticação com perfis
+- cadastro de usuários, equipes e equipamentos
+- registro de ocorrências e medições
+- histórico por equipamento
+- criação e acompanhamento de OS
+- alertas com regras determinísticas e análise assistida por IA
+- sugestão de abertura de OS, com decisão final do gerente
+- dashboard com KPIs básicos
+- relatórios com leitura facilitada por IA
+
+Fora do MVP inicial:
+
+- app nativo
+- integrações com ERP/CMMS
+- analytics avançado
+- automação plena da decisão de manutenção
+
+---
+
+## 5. Decisões já adotadas
+
+### Stack e arquitetura
+
+- frontend: `Next.js`
+- backend: `FastAPI`
+- servidor: `Uvicorn`
+- banco: `SQLite`
+- ORM: `SQLAlchemy`
+- organização: `frontend/` e `backend/` no mesmo repositório
+- API no padrão REST
+
+### Autenticação e segurança
+
+- autenticação por `username` ou `email` + senha
+- senha com hash no backend
+- autenticação com `JWT`
+- chave da OpenAI armazenada em `.env`
+- nome esperado da variável: `OPENAI_API_KEY`
+- frontend nunca deve chamar a OpenAI diretamente
+- integração com OpenAI fica encapsulada no backend
+
+### IA
+
+- modelo adotado para todas as etapas com IA: `gpt-5.4-mini`
+- IA apoia análise e decisão humana, não executa decisão crítica sozinha
+- abertura de OS pode ser sugerida pelo sistema, mas a decisão final é do gerente
+- sistema deve continuar funcional mesmo se a integração com IA falhar
+
+### Perfis
+
+- `admin`: acesso total
+- `gerente`: operação ampla, acompanhamento, criação/encaminhamento/priorização de OS
+- `operador`: execução operacional, registros e atuação conforme permissão
+
+### Regras operacionais assumidas
+
+- equipamento deve ter `TAG` única
+- usuário deve estar vinculado a equipe ativa
+- exclusões devem priorizar desativação/inativação, não remoção física
+- email de usuário não pode duplicar
+- nome de equipe deve ser único
+- equipes inativas não podem receber novos vínculos
+- OS sempre vinculada a equipamento e equipe
+- toda ocorrência e medição precisa registrar autor e data/hora
+- toda mudança relevante de status da OS deve gerar histórico
+
+### Escopo simplificado adotado
+
+- QR code fica fora do MVP inicial
+- exportação inicial simples
+- IA não substitui regras determinísticas
+- UI pode ser simples, desde que funcional e responsiva
+
+---
+
+## 6. Usuários, perfis e seeds iniciais
+
+Usuários de referência para seed inicial:
+
+- `Otávio` — administrador
+- `Tainá` — gerente
+- `Michael` — operador
+- `Leonardo` — operador
+- `Murilo` — operador
+
+Setores iniciais:
+
+- Administração
+- Produção
+- Expedição
+- Manutenção
+- Utilidades
+
+Exemplos de TAGs/equipamentos por setor:
+
+- Administração: `PC-01`, `LAMP-01`, `TOM-01`
+- Produção: `MAQ-01`
+- Expedição: `EMP-01`, `PLT-01`
+- Utilidades: `COMP-01`, `GER-01`, `AR-01`
+
+---
+
+## 7. Módulos previstos
+
+- `auth`
+- `users`
+- `teams`
+- `equipments`
+- `occurrences`
+- `measurements`
+- `work-orders`
+- `alerts-rules`
+- `alerts-ai`
+- `reports`
+- `reports-ai`
+- `dashboard`
+
+---
+
+## 8. Planejamento macro por sprint
+
+### Sprint 1
+
+- base do projeto
+- autenticação
+- estrutura inicial de dados
+- seeds
+
+### Sprint 2
+
+- CRUD de usuários
+- CRUD de equipes
+- CRUD de equipamentos
+- permissões e consistência de cadastros
+
+### Sprint 3
+
+- ocorrências
+- medições
+- histórico por equipamento
+
+### Sprint 4
+
+- ordens de serviço
+- fluxo operacional e histórico de status
+
+### Sprint 5
+
+- alertas por regras
+- alertas com IA
+- análise de comportamento e tendência
+- sugestão de OS para decisão do gerente
+
+### Sprint 6
+
+- dashboard
+- KPIs
+- relatórios
+- leitura analítica por IA
+- estabilização final do MVP
+
+---
+
+## 9. Regras para novas threads de sprint
+
+Ao abrir uma nova thread:
+
+1. ler este arquivo e os documentos numerados em `docs/`
+2. assumir somente a sprint atual como foco principal
+3. não avançar para escopos de sprints futuras sem necessidade
+4. preservar decisões já adotadas, salvo instrução explícita em contrário
+5. ao fim, produzir handoff de saída claro e reutilizável
+
+---
+
+## 10. Formato esperado do handoff de saída de cada sprint
+
+Ao concluir uma sprint, o handoff devolvido para a thread principal deve conter:
+
+- resumo do objetivo da sprint
+- status geral: concluído, parcial ou bloqueado
+- entregas concluídas
+- entregas parciais
+- itens não iniciados
+- decisões técnicas tomadas durante a execução
+- pendências e riscos
+- arquivos principais alterados
+- comandos de validação executados
+- limitações conhecidas
+- recomendação objetiva para a próxima sprint
+
+---
+
+## 11. Diretriz de execução
+
+Priorizar sempre:
+
+- funcionamento ponta a ponta
+- simplicidade de implementação
+- consistência do modelo de dados
+- controle de acesso por perfil
+- rastreabilidade operacional
+- base pronta para a camada de IA nas sprints posteriores
+
+Este projeto deve evoluir sprint a sprint, com handoffs curtos, claros e reaproveitáveis entre threads.
