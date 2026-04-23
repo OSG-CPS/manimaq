@@ -1,9 +1,7 @@
 set PATH=C:\Program Files\nodejs;%PATH%
-cd C:\dev\manimaq\backend
-python -m pip install -r requirements.txt
-Copy-Item .env.example .env -Force
-python -m scripts.seed
-python -m uvicorn app.main:app --reload
+cd C:\dev\manimaq\frontend
+...
+npm run dev
 
 
 cd C:\dev\manimaq\backend

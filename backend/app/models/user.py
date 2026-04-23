@@ -35,3 +35,5 @@ class User(Base):
     )
 
     team = relationship("Team", back_populates="users")
+    occurrences = relationship("Occurrence", back_populates="author")
+    measurements = relationship("Measurement", back_populates="author")

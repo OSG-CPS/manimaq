@@ -11,9 +11,12 @@ import { AuthSession, AuthUser, canAccessAdminModules, getStoredSession, saveSes
 
 const navigationItems = [
   { href: "/dashboard", label: "Resumo" },
-  { href: "/dashboard/teams", label: "Equipes" },
-  { href: "/dashboard/equipments", label: "Equipamentos" },
-  { href: "/dashboard/users", label: "Usuarios" },
+  { href: "/dashboard/occurrences", label: "Ocorrencias", adminOnly: false },
+  { href: "/dashboard/measurements", label: "Medicoes", adminOnly: false },
+  { href: "/dashboard/history", label: "Historico", adminOnly: false },
+  { href: "/dashboard/teams", label: "Equipes", adminOnly: true },
+  { href: "/dashboard/equipments", label: "Equipamentos", adminOnly: true },
+  { href: "/dashboard/users", label: "Usuarios", adminOnly: true },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -57,7 +60,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <section className="dashboard-frame dashboard-grid">
           <aside className="sidebar-panel stack">
             <div className="stack">
-              <p className="helper-text">Sprint 2 em execucao</p>
+              <p className="helper-text">Sprint 3 em execucao</p>
               <h1 className="sidebar-title">Manimaq</h1>
               <p className="helper-text">
                 {session ? `${session.user.name} (${session.user.role})` : "Carregando sessao..."}
@@ -69,7 +72,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
             <nav className="stack-sm">
               {navigationItems.map((item) => {
-                if (!canManage && item.href !== "/dashboard") {
+                if (item.adminOnly && !canManage) {
                   return null;
                 }
 
@@ -89,8 +92,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <div className="sidebar-footer stack">
               <p className="helper-text">
                 {canManage
-                  ? "Area administrativa habilitada para cadastros da Sprint 2."
-                  : "Seu perfil pode consultar o resumo, mas nao acessa os cadastros administrativos."}
+                  ? "Fluxos operacionais e administrativos liberados para este perfil."
+                  : "Seu perfil pode operar ocorrencias, medicoes e historico, sem acesso aos cadastros administrativos."}
               </p>
               <LogoutButton />
             </div>

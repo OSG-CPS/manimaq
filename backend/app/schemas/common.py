@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, ConfigDict
 
@@ -22,6 +22,22 @@ class EquipmentSummary(BaseModel):
     active: bool
 
 
+class UserSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    username: str
+    role: str
+    active: bool
+
+
 class TimestampedModel(BaseModel):
     created_at: datetime
     updated_at: datetime
+
+
+def ensure_utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)

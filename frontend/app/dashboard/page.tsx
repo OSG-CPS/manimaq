@@ -60,15 +60,37 @@ export default function DashboardPage() {
           <p className="metric">{summary?.team ?? "--"}</p>
           <p className="helper-text">Novo vinculo exige equipe ativa no backend.</p>
         </article>
+
+        <article className="grid-card">
+          <h2>Sprint</h2>
+          <p className="metric">SPT3</p>
+          <p className="helper-text">Ocorrencias, medicoes e historico por equipamento agora fazem parte do fluxo.</p>
+        </article>
       </section>
 
       <section className="panel stack">
-        <h3 className="section-title">Sprint 2 entregue nesta base</h3>
+        <h3 className="section-title">Base atual do MVP</h3>
         <ul className="list">
           <li>Autorizacao por perfil aplicada no backend para os modulos administrativos.</li>
           <li>Cadastros de equipes, equipamentos e usuarios com persistencia em SQLite.</li>
           <li>Validacoes de email unico, TAG unica e bloqueio de equipe inativa.</li>
+          <li>Fluxos operacionais prontos para registrar ocorrencias e medicoes com autor e data/hora.</li>
         </ul>
+      </section>
+
+      <section className="grid-layout">
+        <Link className="grid-card card-link" href="/dashboard/occurrences">
+          <h2>Ocorrencias</h2>
+          <p className="helper-text">Registrar falhas, risco a seguranca e parada de producao.</p>
+        </Link>
+        <Link className="grid-card card-link" href="/dashboard/measurements">
+          <h2>Medicoes</h2>
+          <p className="helper-text">Lancar vibracao, temperatura, tensao e corrente.</p>
+        </Link>
+        <Link className="grid-card card-link" href="/dashboard/history">
+          <h2>Historico</h2>
+          <p className="helper-text">Consultar a linha do tempo operacional de cada equipamento.</p>
+        </Link>
       </section>
 
       {canManage ? (

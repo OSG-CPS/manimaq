@@ -38,7 +38,8 @@ a {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -99,6 +100,11 @@ select {
   border-radius: 14px;
   padding: 14px 16px;
   background: var(--panel-strong);
+}
+
+.textarea {
+  min-height: 132px;
+  resize: vertical;
 }
 
 .input:focus {
@@ -239,6 +245,13 @@ select {
   display: grid;
   gap: 20px;
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  align-items: start;
+}
+
+.measurements-form-panel {
+  position: sticky;
+  top: 24px;
+  align-self: start;
 }
 
 .toolbar-inline {
@@ -261,6 +274,11 @@ select {
   border: 1px solid rgba(214, 211, 204, 0.9);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.7);
+}
+
+.table-row-danger {
+  border-color: rgba(184, 59, 47, 0.35);
+  background: rgba(184, 59, 47, 0.08);
 }
 
 .row-actions {
@@ -289,6 +307,46 @@ select {
   background: rgba(15, 109, 95, 0.06);
 }
 
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 109, 95, 0.1);
+  color: var(--accent-dark);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.status-stop {
+  background: rgba(184, 59, 47, 0.12);
+  color: var(--danger);
+}
+
+.severity-baixa {
+  background: rgba(15, 109, 95, 0.1);
+}
+
+.severity-media {
+  background: rgba(224, 173, 46, 0.18);
+  color: #8f5d00;
+}
+
+.severity-alta,
+.severity-critica {
+  background: rgba(184, 59, 47, 0.14);
+  color: var(--danger);
+}
+
+.metric-inline {
+  font-size: 1.35rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .success-box {
   border-radius: 14px;
   padding: 12px 14px;
@@ -310,6 +368,12 @@ select {
   margin: 0;
   padding-left: 18px;
   color: var(--muted);
+}
+
+.history-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 @media (max-width: 640px) {
@@ -341,6 +405,10 @@ select {
   }
 
   .sidebar-panel {
+    position: static;
+  }
+
+  .measurements-form-panel {
     position: static;
   }
 }
