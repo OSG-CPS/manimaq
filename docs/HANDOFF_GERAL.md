@@ -133,7 +133,7 @@ Usuários de referência para seed inicial:
 - `Tainá` — gerente
 - `Michael` — operador
 - `Leonardo` — operador
-- `Murilo` — operador
+- `Murillo` — operador
 
 Setores iniciais:
 

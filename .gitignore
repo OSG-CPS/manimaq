@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+backend/.env
+backend/.packages/
+backend/manimaq.db
+backend/data/
+frontend/.env.local
+frontend/.next/
+frontend/node_modules/
