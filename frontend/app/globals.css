@@ -260,6 +260,15 @@ textarea {
   align-items: center;
 }
 
+.toolbar-wrap {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.dashboard-filter {
+  min-width: 180px;
+}
+
 .table-list {
   display: grid;
   gap: 12px;
@@ -413,6 +422,30 @@ textarea {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
+.stats-strip,
+.report-grid,
+.filters-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.stats-strip {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.report-grid {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.filters-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.align-end {
+  justify-items: end;
+  text-align: right;
+}
+
 @media (max-width: 640px) {
   .card,
   .toolbar,
@@ -430,8 +463,14 @@ textarea {
   }
 
   .toolbar-inline,
-  .table-row {
+  .table-row,
+  .toolbar-wrap {
     flex-direction: column;
+  }
+
+  .align-end {
+    justify-items: start;
+    text-align: left;
   }
 }
 

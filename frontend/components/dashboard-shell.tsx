@@ -11,6 +11,7 @@ import { AuthSession, AuthUser, canAccessAdminModules, getStoredSession, saveSes
 
 const navigationItems = [
   { href: "/dashboard", label: "Resumo" },
+  { href: "/dashboard/reports", label: "Relatorios", adminOnly: false },
   { href: "/dashboard/alerts", label: "Alertas", adminOnly: false },
   { href: "/dashboard/work-orders", label: "Ordens de Servico", adminOnly: false },
   { href: "/dashboard/occurrences", label: "Ocorrencias", adminOnly: false },
@@ -62,7 +63,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <section className="dashboard-frame dashboard-grid">
           <aside className="sidebar-panel stack">
             <div className="stack">
-              <p className="helper-text">Sprint 5 em execucao</p>
+              <p className="helper-text">Sprint 6 em execucao</p>
               <h1 className="sidebar-title">Manimaq</h1>
               <p className="helper-text">
                 {session ? `${session.user.name} (${session.user.role})` : "Carregando sessao..."}

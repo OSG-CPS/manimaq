@@ -199,17 +199,26 @@ Exemplos de TAGs/equipamentos por setor:
 ### Sprint 5
 
 - alertas por regras
-- alertas com IA
-- análise de comportamento e tendência
+- enriquecimento opcional por IA
 - sugestão de OS para decisão do gerente
+- thresholds por equipamento
+- fluxo gerencial de abertura manual de OS a partir do alerta
+- edição de OS ainda aberta para correção operacional
 
 ### Sprint 6
 
 - dashboard
 - KPIs
-- relatórios
+- relatórios básicos
+- consolidação visual e operacional dos dados já disponíveis
+- sem IA pesada como foco principal
+
+### Sprint 7
+
+- alertas com IA mais madura
+- análise de comportamento e tendência
 - leitura analítica por IA
-- estabilização final do MVP
+- refinamento gerencial das recomendações e análises
 
 ---
 

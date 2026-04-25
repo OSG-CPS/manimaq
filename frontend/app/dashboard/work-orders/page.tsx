@@ -85,6 +85,21 @@ type WorkOrderEditPayload = {
   estimated_duration_hours: number | null;
 };
 
+type WorkOrderFormState = {
+  equipment_id: string;
+  team_id: string;
+  type: "corretiva" | "preventiva";
+  priority: "baixa" | "media" | "alta" | "critica";
+  description: string;
+  planned_start_at: string;
+  estimated_duration_hours: string;
+  initial_note: string;
+  origin: "manual" | "sugerida";
+};
+
+type WorkOrderTypeValue = WorkOrderFormState["type"];
+type WorkOrderPriorityValue = WorkOrderFormState["priority"];
+
 function getDefaultDateTimeLocal() {
   const now = new Date();
   const adjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
@@ -95,7 +110,7 @@ function toApiDateTime(value: string) {
   return value ? new Date(value).toISOString() : null;
 }
 
-const initialForm = {
+const initialForm: WorkOrderFormState = {
   equipment_id: "",
   team_id: "",
   type: "corretiva",
@@ -343,10 +358,14 @@ export default function WorkOrdersPage() {
     }
 
     if (selectedWorkOrder.status === "aberta") {
-      return canManage ? ["em_execucao", "cancelada"] : ["em_execucao"];
+      return canManage
+        ? (["em_execucao", "cancelada"] as WorkOrderStatus[])
+        : (["em_execucao"] as WorkOrderStatus[]);
     }
     if (selectedWorkOrder.status === "em_execucao") {
-      return canManage ? ["concluida", "cancelada"] : ["concluida"];
+      return canManage
+        ? (["concluida", "cancelada"] as WorkOrderStatus[])
+        : (["concluida"] as WorkOrderStatus[]);
     }
     return [] as WorkOrderStatus[];
   }, [canManage, selectedWorkOrder]);
@@ -576,7 +595,9 @@ export default function WorkOrdersPage() {
                   <select
                     className="input"
                     id="work-order-type"
-                    onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, type: event.target.value as WorkOrderTypeValue }))
+                    }
                     value={form.type}
                   >
                     <option value="corretiva">Corretiva</option>
@@ -589,7 +610,9 @@ export default function WorkOrdersPage() {
                   <select
                     className="input"
                     id="work-order-priority"
-                    onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, priority: event.target.value as WorkOrderPriorityValue }))
+                    }
                     value={form.priority}
                   >
                     <option value="baixa">Baixa</option>
