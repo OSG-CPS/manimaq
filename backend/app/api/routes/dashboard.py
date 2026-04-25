@@ -23,6 +23,7 @@ from app.schemas.dashboard import (
     MaintenanceTypeReportItem,
     TeamReportItem,
 )
+from app.services.analytics import build_dashboard_analytical_reading
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -301,6 +302,15 @@ def dashboard_reports(
         maintenance_type=maintenance_type,
     )
     scope, scoped_team_id, scoped_team_name = _scope_metadata(current_user)
+    filters = {
+        "equipment_id": equipment_id,
+        "team_id": team_id,
+        "maintenance_type": maintenance_type.value if maintenance_type else None,
+    }
+    kpis = _build_kpis(work_orders, occurrences, alerts)
+    occurrences_by_equipment = _build_equipment_ranking(occurrences, work_orders, alerts)
+    work_orders_by_team = _build_team_report(work_orders, teams)
+    work_orders_by_type = _build_type_report(work_orders)
 
     return DashboardReportResponse(
         scope=scope,
@@ -308,13 +318,19 @@ def dashboard_reports(
         team_name=scoped_team_name,
         period_days=period_days,
         generated_at=datetime.now(timezone.utc),
-        filters={
-            "equipment_id": equipment_id,
-            "team_id": team_id,
-            "maintenance_type": maintenance_type.value if maintenance_type else None,
-        },
-        kpis=_build_kpis(work_orders, occurrences, alerts),
-        occurrences_by_equipment=_build_equipment_ranking(occurrences, work_orders, alerts),
-        work_orders_by_team=_build_team_report(work_orders, teams),
-        work_orders_by_type=_build_type_report(work_orders),
+        filters=filters,
+        kpis=kpis,
+        occurrences_by_equipment=occurrences_by_equipment,
+        work_orders_by_team=work_orders_by_team,
+        work_orders_by_type=work_orders_by_type,
+        analytical_reading=build_dashboard_analytical_reading(
+            scope=scope,
+            team_name=scoped_team_name,
+            period_days=period_days,
+            filters=filters,
+            kpis=kpis,
+            occurrences_by_equipment=occurrences_by_equipment,
+            work_orders_by_team=work_orders_by_team,
+            work_orders_by_type=work_orders_by_type,
+        ),
     )

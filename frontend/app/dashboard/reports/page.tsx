@@ -64,6 +64,24 @@ type DashboardReport = {
     total: number;
     percentage: number;
   }>;
+  analytical_reading: {
+    source: "ai" | "fallback";
+    model: string | null;
+    generated_at: string;
+    disclaimer: string;
+    summary: string;
+    attention_points: string[];
+    patterns: string[];
+    recommendations: string[];
+    based_on: {
+      scope: string;
+      team_name: string | null;
+      period_days: number;
+      equipment_id: number | null;
+      team_id: number | null;
+      maintenance_type: "corretiva" | "preventiva" | null;
+    };
+  };
 };
 
 export default function ReportsPage() {
@@ -232,6 +250,82 @@ export default function ReportsPage() {
       </section>
 
       <section className="report-grid">
+        <article className="panel stack">
+          <div className="stack-sm">
+            <div className="toolbar-inline">
+              <h3 className="section-title">Leitura analitica</h3>
+              <span className={report?.analytical_reading.source === "ai" ? "status-pill severity-media" : "status-pill"}>
+                {report?.analytical_reading.source === "ai" ? "Gerado por IA" : "Fallback local"}
+              </span>
+            </div>
+            <p className="helper-text">
+              {report?.analytical_reading.disclaimer ?? "Leitura gerencial assistida para apoio a decisao."}
+            </p>
+          </div>
+
+          <div className="detail-box">
+            <strong>Resumo executivo</strong>
+            <p className="helper-text">{loading ? "Gerando leitura..." : report?.analytical_reading.summary ?? "--"}</p>
+          </div>
+
+          <div className="stack-sm">
+            <strong>Pontos de atencao</strong>
+            <div className="table-list">
+              {report?.analytical_reading.attention_points.length ? (
+                report.analytical_reading.attention_points.map((item) => (
+                  <div className="table-row" key={item}>
+                    <p className="helper-text">{item}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="detail-box">
+                  <p className="helper-text">Sem destaques analiticos para o recorte atual.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="stack-sm">
+            <strong>Padroes observados</strong>
+            <div className="table-list">
+              {report?.analytical_reading.patterns.length ? (
+                report.analytical_reading.patterns.map((item) => (
+                  <div className="table-row" key={item}>
+                    <p className="helper-text">{item}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="detail-box">
+                  <p className="helper-text">Sem padroes relevantes identificados.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="stack-sm">
+            <strong>Recomendacoes operacionais</strong>
+            <div className="table-list">
+              {report?.analytical_reading.recommendations.length ? (
+                report.analytical_reading.recommendations.map((item) => (
+                  <div className="table-row" key={item}>
+                    <p className="helper-text">{item}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="detail-box">
+                  <p className="helper-text">Sem recomendacoes adicionais.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <p className="helper-text">
+            Atualizado em{" "}
+            {report ? new Date(report.analytical_reading.generated_at).toLocaleString("pt-BR") : "--"}
+            {report?.analytical_reading.model ? ` com ${report.analytical_reading.model}` : " sem dependencia da OpenAI"}.
+          </p>
+        </article>
+
         <article className="panel stack">
           <div className="stack-sm">
             <h3 className="section-title">Ocorrencias por equipamento</h3>

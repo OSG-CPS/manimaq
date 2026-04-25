@@ -41,6 +41,18 @@ class MaintenanceTypeReportItem(BaseModel):
     percentage: float
 
 
+class DashboardAnalyticalReading(BaseModel):
+    source: str
+    model: str | None
+    generated_at: datetime
+    disclaimer: str
+    summary: str
+    attention_points: list[str]
+    patterns: list[str]
+    recommendations: list[str]
+    based_on: dict[str, int | str | None]
+
+
 class DashboardOverviewResponse(BaseModel):
     scope: str
     team_id: int | None
@@ -64,3 +76,4 @@ class DashboardReportResponse(BaseModel):
     occurrences_by_equipment: list[EquipmentRankingItem]
     work_orders_by_team: list[TeamReportItem]
     work_orders_by_type: list[MaintenanceTypeReportItem]
+    analytical_reading: DashboardAnalyticalReading

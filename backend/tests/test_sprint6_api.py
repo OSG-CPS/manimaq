@@ -2,6 +2,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -303,6 +304,43 @@ class Sprint6ApiTestCase(unittest.TestCase):
 
         forbidden_team = self.client.get("/api/dashboard/reports?team_id=2", headers=operator_headers)
         self.assertEqual(forbidden_team.status_code, 403, forbidden_team.text)
+
+    def test_reports_include_fallback_analytical_reading_without_openai(self) -> None:
+        self._seed_operational_data()
+        manager_token = self._login("gerente.s6", "Senha@123")
+        manager_headers = {"Authorization": f"Bearer {manager_token}"}
+
+        response = self.client.get("/api/dashboard/reports?period_days=365", headers=manager_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+
+        self.assertEqual(payload["analytical_reading"]["source"], "fallback")
+        self.assertIsNone(payload["analytical_reading"]["model"])
+        self.assertTrue(payload["analytical_reading"]["summary"])
+        self.assertGreaterEqual(len(payload["analytical_reading"]["attention_points"]), 2)
+        self.assertIn("Nao substitui decisao humana", payload["analytical_reading"]["disclaimer"])
+
+    def test_reports_include_ai_analytical_reading_when_openai_responds(self) -> None:
+        self._seed_operational_data()
+        manager_token = self._login("gerente.s6", "Senha@123")
+        manager_headers = {"Authorization": f"Bearer {manager_token}"}
+
+        with patch("app.services.analytics.settings.openai_api_key", "test-key"), patch(
+            "app.services.analytics.request.urlopen"
+        ) as mock_urlopen:
+            mock_response = mock_urlopen.return_value.__enter__.return_value
+            mock_response.read.return_value = (
+                b'{"output_text":"{\\"summary\\":\\"Leitura sintetica.\\",\\"attention_points\\":[\\"Ponto 1\\",\\"Ponto 2\\"],\\"patterns\\":[\\"Padrao 1\\",\\"Padrao 2\\"],\\"recommendations\\":[\\"Recomendacao 1\\",\\"Recomendacao 2\\"]}"}'
+            )
+
+            response = self.client.get("/api/dashboard/reports?period_days=365", headers=manager_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+
+        self.assertEqual(payload["analytical_reading"]["source"], "ai")
+        self.assertEqual(payload["analytical_reading"]["model"], "gpt-5.4-mini")
+        self.assertEqual(payload["analytical_reading"]["summary"], "Leitura sintetica.")
+        self.assertEqual(payload["analytical_reading"]["attention_points"][0], "Ponto 1")
 
 
 if __name__ == "__main__":
