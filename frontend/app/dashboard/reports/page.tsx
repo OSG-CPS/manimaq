@@ -21,6 +21,62 @@ type TeamOption = {
   active: boolean;
 };
 
+type DashboardTrend = {
+  scope: "global" | "team";
+  team_id: number | null;
+  team_name: string | null;
+  generated_at: string;
+  filters: {
+    analysis_scope: "equipment" | "sector";
+    window: "7" | "30" | "total";
+    equipment_id: number | null;
+    sector: string | null;
+    maintenance_type: "corretiva" | "preventiva" | null;
+  };
+  trend_reading: {
+    source: "ai" | "fallback";
+    model: string | null;
+    generated_at: string;
+    disclaimer: string;
+    analysis_scope: "equipment" | "sector";
+    window: "7" | "30" | "total";
+    classification: "normal" | "monitorar" | "intervir";
+    executive_reading: string;
+    technical_reading: string;
+    recommendations: string[];
+    based_on: {
+      scope: string;
+      team_name: string | null;
+      analysis_scope: "equipment" | "sector";
+      window: "7" | "30" | "total";
+      equipment_id: number | null;
+      sector: string | null;
+      maintenance_type: "corretiva" | "preventiva" | null;
+    };
+    totals: {
+      occurrences: number;
+      alerts: number;
+      open_alerts: number;
+      reviewed_alerts: number;
+      open_work_orders: number;
+      completed_work_orders: number;
+      corrective_percentage: number;
+      preventive_percentage: number;
+      mean_resolution_hours: number | null;
+    };
+    hot_spots: Array<{
+      label: string;
+      scope: "equipment" | "sector";
+      occurrences: number;
+      alerts: number;
+      open_alerts: number;
+      open_work_orders: number;
+      completed_work_orders: number;
+      trend_direction: "subindo" | "reduzindo" | "estavel";
+    }>;
+  };
+};
+
 type DashboardReport = {
   scope: "global" | "team";
   team_id: number | null;
@@ -90,12 +146,20 @@ export default function ReportsPage() {
   const [equipments, setEquipments] = useState<EquipmentOption[]>([]);
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [report, setReport] = useState<DashboardReport | null>(null);
+  const [trend, setTrend] = useState<DashboardTrend | null>(null);
   const [periodDays, setPeriodDays] = useState("30");
   const [equipmentId, setEquipmentId] = useState("");
   const [teamId, setTeamId] = useState("");
   const [maintenanceType, setMaintenanceType] = useState("");
+  const [trendScope, setTrendScope] = useState<"equipment" | "sector">("equipment");
+  const [trendWindow, setTrendWindow] = useState<"7" | "30" | "total">("30");
+  const [trendSector, setTrendSector] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const sectors = Array.from(new Set([...equipments.map((item) => item.sector), ...teams.map((item) => item.sector)])).filter(
+    Boolean,
+  );
 
   async function loadCatalogs() {
     const [equipmentData, teamData] = await Promise.all([
@@ -110,20 +174,36 @@ export default function ReportsPage() {
     setLoading(true);
     setError("");
     try {
-      const query = new URLSearchParams();
-      query.set("period_days", periodDays);
+      const reportQuery = new URLSearchParams();
+      reportQuery.set("period_days", periodDays);
       if (equipmentId) {
-        query.set("equipment_id", equipmentId);
+        reportQuery.set("equipment_id", equipmentId);
       }
       if (teamId && canManage) {
-        query.set("team_id", teamId);
+        reportQuery.set("team_id", teamId);
       }
       if (maintenanceType) {
-        query.set("maintenance_type", maintenanceType);
+        reportQuery.set("maintenance_type", maintenanceType);
+      }
+      const trendQuery = new URLSearchParams();
+      trendQuery.set("analysis_scope", trendScope);
+      trendQuery.set("window", trendWindow);
+      if (maintenanceType) {
+        trendQuery.set("maintenance_type", maintenanceType);
+      }
+      if (trendScope === "equipment" && equipmentId) {
+        trendQuery.set("equipment_id", equipmentId);
+      }
+      if (trendScope === "sector" && trendSector) {
+        trendQuery.set("sector", trendSector);
       }
 
-      const data = await fetchApi<DashboardReport>(`/dashboard/reports?${query.toString()}`);
-      setReport(data);
+      const [reportData, trendData] = await Promise.all([
+        fetchApi<DashboardReport>(`/dashboard/reports?${reportQuery.toString()}`),
+        fetchApi<DashboardTrend>(`/dashboard/trends?${trendQuery.toString()}`),
+      ]);
+      setReport(reportData);
+      setTrend(trendData);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Falha ao carregar relatorios.");
     } finally {
@@ -148,10 +228,10 @@ export default function ReportsPage() {
   return (
     <section className="stack-lg">
       <header className="panel stack">
-        <p className="helper-text">Sprint 6</p>
-        <h2 className="section-title">Relatorios basicos</h2>
+        <p className="helper-text">Sprint 7.5</p>
+        <h2 className="section-title">Relatorios analiticos</h2>
         <p className="helper-text">
-          Consolidados simples e auditaveis por periodo, equipamento, equipe e tipo de manutencao.
+          Consolidados auditaveis com leitura assistida e relatorio de tendencias por equipamento ou setor.
         </p>
       </header>
 
@@ -214,6 +294,9 @@ export default function ReportsPage() {
               setEquipmentId("");
               setTeamId("");
               setMaintenanceType("");
+              setTrendScope("equipment");
+              setTrendWindow("30");
+              setTrendSector("");
             }}
             type="button"
           >
@@ -250,6 +333,161 @@ export default function ReportsPage() {
       </section>
 
       <section className="report-grid">
+        <article className="panel stack">
+          <div className="stack-sm">
+            <div className="toolbar-inline toolbar-wrap">
+              <div className="stack-sm">
+                <h3 className="section-title">Analise de tendencias</h3>
+                <p className="helper-text">
+                  Leitura executiva e tecnica por {trendScope === "equipment" ? "equipamento" : "setor"} na janela selecionada.
+                </p>
+              </div>
+              <span
+                className={
+                  trend?.trend_reading.classification === "intervir"
+                    ? "status-pill severity-critica"
+                    : trend?.trend_reading.classification === "monitorar"
+                      ? "status-pill severity-media"
+                      : "status-pill"
+                }
+              >
+                {loading ? "Analisando..." : trend?.trend_reading.classification ?? "--"}
+              </span>
+            </div>
+
+            <div className="filters-grid">
+              <label className="label">
+                Recorte
+                <select
+                  className="input"
+                  onChange={(event) => setTrendScope(event.target.value as "equipment" | "sector")}
+                  value={trendScope}
+                >
+                  <option value="equipment">Equipamento</option>
+                  <option value="sector">Setor</option>
+                </select>
+              </label>
+
+              <label className="label">
+                Janela
+                <select
+                  className="input"
+                  onChange={(event) => setTrendWindow(event.target.value as "7" | "30" | "total")}
+                  value={trendWindow}
+                >
+                  <option value="7">7 dias</option>
+                  <option value="30">30 dias</option>
+                  <option value="total">Total</option>
+                </select>
+              </label>
+
+              {trendScope === "sector" ? (
+                <label className="label">
+                  Setor
+                  <select className="input" onChange={(event) => setTrendSector(event.target.value)} value={trendSector}>
+                    <option value="">Todos</option>
+                    {sectors.map((sector) => (
+                      <option key={sector} value={sector}>
+                        {sector}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+
+            <p className="helper-text">
+              {trend?.trend_reading.disclaimer ?? "Analise de tendencia com carater assistivo e nao deterministico."}
+            </p>
+          </div>
+
+          <section className="trend-summary-grid">
+            <div className="detail-box">
+              <strong>Ocorrencias</strong>
+              <p className="metric-inline">{loading ? "..." : trend?.trend_reading.totals.occurrences ?? 0}</p>
+            </div>
+            <div className="detail-box">
+              <strong>Alertas abertos</strong>
+              <p className="metric-inline">{loading ? "..." : trend?.trend_reading.totals.open_alerts ?? 0}</p>
+            </div>
+            <div className="detail-box">
+              <strong>OS em aberto</strong>
+              <p className="metric-inline">{loading ? "..." : trend?.trend_reading.totals.open_work_orders ?? 0}</p>
+            </div>
+            <div className="detail-box">
+              <strong>Mix corretiva</strong>
+              <p className="metric-inline">
+                {loading ? "..." : trend ? `${trend.trend_reading.totals.corrective_percentage}%` : "--"}
+              </p>
+            </div>
+          </section>
+
+          <div className="detail-box stack-sm">
+            <strong>Leitura executiva</strong>
+            <p className="helper-text">{loading ? "Gerando leitura..." : trend?.trend_reading.executive_reading ?? "--"}</p>
+          </div>
+
+          <div className="detail-box stack-sm">
+            <strong>Leitura tecnica</strong>
+            <p className="helper-text">{loading ? "Gerando leitura..." : trend?.trend_reading.technical_reading ?? "--"}</p>
+          </div>
+
+          <div className="stack-sm">
+            <div className="toolbar-inline">
+              <strong>Focos do recorte</strong>
+              <span className={trend?.trend_reading.source === "ai" ? "status-pill severity-media" : "status-pill"}>
+                {trend?.trend_reading.source === "ai" ? "Gerado por IA" : "Fallback local"}
+              </span>
+            </div>
+            <div className="table-list">
+              {trend?.trend_reading.hot_spots.length ? (
+                trend.trend_reading.hot_spots.map((item) => (
+                  <div className="table-row" key={item.label}>
+                    <div className="stack-sm">
+                      <strong>{item.label}</strong>
+                      <p className="helper-text">
+                        {item.occurrences} ocorrencia(s) | {item.alerts} alerta(s) | {item.open_work_orders} OS aberta(s)
+                      </p>
+                    </div>
+                    <span
+                      className={
+                        item.trend_direction === "subindo"
+                          ? "status-pill severity-critica"
+                          : item.trend_direction === "reduzindo"
+                            ? "status-pill"
+                            : "status-pill severity-media"
+                      }
+                    >
+                      {item.trend_direction}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="detail-box">
+                  <p className="helper-text">Sem recorrencia suficiente para destacar tendencia no recorte atual.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="stack-sm">
+            <strong>Recomendacoes operacionais</strong>
+            <div className="table-list">
+              {trend?.trend_reading.recommendations.length ? (
+                trend.trend_reading.recommendations.map((item) => (
+                  <div className="table-row" key={item}>
+                    <p className="helper-text">{item}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="detail-box">
+                  <p className="helper-text">Sem recomendacoes adicionais para esta tendencia.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </article>
+
         <article className="panel stack">
           <div className="stack-sm">
             <div className="toolbar-inline">

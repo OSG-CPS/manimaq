@@ -53,6 +53,33 @@ class DashboardAnalyticalReading(BaseModel):
     based_on: dict[str, int | str | None]
 
 
+class DashboardTrendHotSpotItem(BaseModel):
+    label: str
+    scope: str
+    occurrences: int
+    alerts: int
+    open_alerts: int
+    open_work_orders: int
+    completed_work_orders: int
+    trend_direction: str
+
+
+class DashboardTrendReading(BaseModel):
+    source: str
+    model: str | None
+    generated_at: datetime
+    disclaimer: str
+    analysis_scope: str
+    window: str
+    classification: str
+    executive_reading: str
+    technical_reading: str
+    recommendations: list[str]
+    based_on: dict[str, int | str | None]
+    totals: dict[str, int | float | None]
+    hot_spots: list[DashboardTrendHotSpotItem]
+
+
 class DashboardOverviewResponse(BaseModel):
     scope: str
     team_id: int | None
@@ -77,3 +104,12 @@ class DashboardReportResponse(BaseModel):
     work_orders_by_team: list[TeamReportItem]
     work_orders_by_type: list[MaintenanceTypeReportItem]
     analytical_reading: DashboardAnalyticalReading
+
+
+class DashboardTrendResponse(BaseModel):
+    scope: str
+    team_id: int | None
+    team_name: str | None
+    generated_at: datetime
+    filters: dict[str, int | str | None]
+    trend_reading: DashboardTrendReading

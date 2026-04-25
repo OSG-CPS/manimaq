@@ -424,7 +424,8 @@ textarea {
 
 .stats-strip,
 .report-grid,
-.filters-grid {
+.filters-grid,
+.trend-summary-grid {
   display: grid;
   gap: 20px;
 }
@@ -440,6 +441,10 @@ textarea {
 
 .filters-grid {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.trend-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .align-end {

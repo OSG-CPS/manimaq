@@ -342,6 +342,66 @@ class Sprint6ApiTestCase(unittest.TestCase):
         self.assertEqual(payload["analytical_reading"]["summary"], "Leitura sintetica.")
         self.assertEqual(payload["analytical_reading"]["attention_points"][0], "Ponto 1")
 
+    def test_trends_return_sector_analysis_with_fallback(self) -> None:
+        self._seed_operational_data()
+        manager_token = self._login("gerente.s6", "Senha@123")
+        manager_headers = {"Authorization": f"Bearer {manager_token}"}
+
+        response = self.client.get(
+            "/api/dashboard/trends?analysis_scope=sector&window=30&sector=Utilidades",
+            headers=manager_headers,
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+
+        self.assertEqual(payload["trend_reading"]["analysis_scope"], "sector")
+        self.assertEqual(payload["trend_reading"]["window"], "30")
+        self.assertEqual(payload["trend_reading"]["source"], "fallback")
+        self.assertIn(payload["trend_reading"]["classification"], {"normal", "monitorar", "intervir"})
+        self.assertGreaterEqual(len(payload["trend_reading"]["hot_spots"]), 1)
+        self.assertEqual(payload["trend_reading"]["hot_spots"][0]["scope"], "sector")
+
+    def test_trends_respect_operator_sector_scope(self) -> None:
+        self._seed_operational_data()
+        operator_token = self._login("operador.s6", "Senha@123")
+        operator_headers = {"Authorization": f"Bearer {operator_token}"}
+
+        allowed = self.client.get(
+            "/api/dashboard/trends?analysis_scope=sector&window=30&sector=Manutencao",
+            headers=operator_headers,
+        )
+        self.assertEqual(allowed.status_code, 200, allowed.text)
+
+        forbidden = self.client.get(
+            "/api/dashboard/trends?analysis_scope=sector&window=30&sector=Utilidades",
+            headers=operator_headers,
+        )
+        self.assertEqual(forbidden.status_code, 403, forbidden.text)
+
+    def test_trends_include_ai_reading_when_openai_responds(self) -> None:
+        self._seed_operational_data()
+        manager_token = self._login("gerente.s6", "Senha@123")
+        manager_headers = {"Authorization": f"Bearer {manager_token}"}
+
+        with patch("app.services.analytics.settings.openai_api_key", "test-key"), patch(
+            "app.services.analytics.request.urlopen"
+        ) as mock_urlopen:
+            mock_response = mock_urlopen.return_value.__enter__.return_value
+            mock_response.read.return_value = (
+                b'{"output_text":"{\\"classification\\":\\"monitorar\\",\\"executive_reading\\":\\"Leitura executiva.\\",\\"technical_reading\\":\\"Leitura tecnica.\\",\\"recommendations\\":[\\"Recomendacao 1\\",\\"Recomendacao 2\\"]}"}'
+            )
+
+            response = self.client.get(
+                "/api/dashboard/trends?analysis_scope=equipment&window=7&equipment_id=1",
+                headers=manager_headers,
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertEqual(payload["trend_reading"]["source"], "ai")
+        self.assertEqual(payload["trend_reading"]["classification"], "monitorar")
+        self.assertEqual(payload["trend_reading"]["executive_reading"], "Leitura executiva.")
+
 
 if __name__ == "__main__":
     unittest.main()

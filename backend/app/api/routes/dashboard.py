@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
@@ -19,11 +20,12 @@ from app.schemas.dashboard import (
     DashboardKpis,
     DashboardOverviewResponse,
     DashboardReportResponse,
+    DashboardTrendResponse,
     EquipmentRankingItem,
     MaintenanceTypeReportItem,
     TeamReportItem,
 )
-from app.services.analytics import build_dashboard_analytical_reading
+from app.services.analytics import build_dashboard_analytical_reading, build_dashboard_trend_reading
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -215,14 +217,12 @@ def _build_type_report(work_orders: list[WorkOrder]) -> list[MaintenanceTypeRepo
 def _load_dashboard_data(
     db: Session,
     current_user: User,
-    period_days: int,
+    period_days: int | None,
     equipment_id: int | None = None,
     team_id: int | None = None,
     maintenance_type: WorkOrderType | None = None,
 ) -> tuple[list[WorkOrder], list[Occurrence], list[Alert], list[Team]]:
-    start = _period_start(period_days)
-
-    work_orders_query = _scoped_work_orders_query(db, current_user).filter(WorkOrder.created_at >= start)
+    work_orders_query = _scoped_work_orders_query(db, current_user)
     if equipment_id is not None:
         work_orders_query = work_orders_query.filter(WorkOrder.equipment_id == equipment_id)
     if team_id is not None:
@@ -230,11 +230,11 @@ def _load_dashboard_data(
     if maintenance_type is not None:
         work_orders_query = work_orders_query.filter(WorkOrder.type == maintenance_type)
 
-    occurrences_query = _scoped_occurrences_query(db, current_user).filter(Occurrence.occurred_at >= start)
+    occurrences_query = _scoped_occurrences_query(db, current_user)
     if equipment_id is not None:
         occurrences_query = occurrences_query.filter(Occurrence.equipment_id == equipment_id)
 
-    alerts_query = _scoped_alerts_query(db, current_user).filter(Alert.event_at >= start)
+    alerts_query = _scoped_alerts_query(db, current_user)
     if equipment_id is not None:
         alerts_query = alerts_query.filter(Alert.equipment_id == equipment_id)
 
@@ -246,6 +246,12 @@ def _load_dashboard_data(
     if team_id is not None:
         teams_query = teams_query.filter(Team.id == team_id)
 
+    if period_days is not None:
+        start = _period_start(period_days)
+        work_orders_query = work_orders_query.filter(WorkOrder.created_at >= start)
+        occurrences_query = occurrences_query.filter(Occurrence.occurred_at >= start)
+        alerts_query = alerts_query.filter(Alert.event_at >= start)
+
     return (
         work_orders_query.all(),
         occurrences_query.all(),
@@ -254,11 +260,124 @@ def _load_dashboard_data(
     )
 
 
-def _validate_manager_filters(current_user: User, team_id: int | None) -> None:
+def _validate_manager_filters(current_user: User, team_id: int | None, sector: str | None = None) -> None:
     if current_user.role != UserRole.OPERADOR:
         return
     if team_id is not None and team_id != current_user.team_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Operador nao pode consultar outra equipe")
+    if sector is not None and current_user.team is not None and sector != current_user.team.sector:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Operador nao pode consultar outro setor")
+
+
+def _window_to_days(window: str) -> int | None:
+    if window == "7":
+        return 7
+    if window == "30":
+        return 30
+    if window == "total":
+        return None
+    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Janela de tendencia invalida")
+
+
+def _is_within_range(value: datetime, start: datetime | None, end: datetime | None) -> bool:
+    normalized = ensure_utc_datetime(value)
+    if start is not None and normalized < start:
+        return False
+    if end is not None and normalized >= end:
+        return False
+    return True
+
+
+def _signal_direction(current_value: int, previous_value: int) -> str:
+    if current_value >= previous_value + 1 and (previous_value == 0 or current_value >= previous_value * 1.25):
+        return "subindo"
+    if previous_value >= current_value + 1 and current_value <= previous_value * 0.75:
+        return "reduzindo"
+    return "estavel"
+
+
+def _trend_group_key(
+    analysis_scope: Literal["equipment", "sector"],
+    equipment: Equipment,
+) -> tuple[str, str]:
+    if analysis_scope == "equipment":
+        return (f"equipment:{equipment.id}", f"{equipment.tag} - {equipment.name}")
+    return (f"sector:{equipment.sector}", equipment.sector)
+
+
+def _build_trend_hot_spots(
+    *,
+    analysis_scope: Literal["equipment", "sector"],
+    current_occurrences: list[Occurrence],
+    current_alerts: list[Alert],
+    current_work_orders: list[WorkOrder],
+    previous_occurrences: list[Occurrence],
+    previous_alerts: list[Alert],
+    previous_work_orders: list[WorkOrder],
+) -> list[dict[str, int | str]]:
+    counters: dict[str, dict[str, int | str]] = {}
+
+    def ensure_item(key: str, label: str) -> dict[str, int | str]:
+        if key not in counters:
+            counters[key] = {
+                "label": label,
+                "scope": analysis_scope,
+                "occurrences": 0,
+                "alerts": 0,
+                "open_alerts": 0,
+                "open_work_orders": 0,
+                "completed_work_orders": 0,
+                "previous_signal": 0,
+            }
+        return counters[key]
+
+    for item in current_occurrences:
+        key, label = _trend_group_key(analysis_scope, item.equipment)
+        ensure_item(key, label)["occurrences"] += 1
+
+    for item in current_alerts:
+        key, label = _trend_group_key(analysis_scope, item.equipment)
+        bucket = ensure_item(key, label)
+        bucket["alerts"] += 1
+        if item.status == AlertStatus.ABERTO:
+            bucket["open_alerts"] += 1
+
+    for item in current_work_orders:
+        key, label = _trend_group_key(analysis_scope, item.equipment)
+        bucket = ensure_item(key, label)
+        if item.status in {WorkOrderStatus.ABERTA, WorkOrderStatus.EM_EXECUCAO}:
+            bucket["open_work_orders"] += 1
+        if item.status == WorkOrderStatus.CONCLUIDA:
+            bucket["completed_work_orders"] += 1
+
+    for item in previous_occurrences:
+        key, label = _trend_group_key(analysis_scope, item.equipment)
+        ensure_item(key, label)["previous_signal"] += 1
+
+    for item in previous_alerts:
+        key, label = _trend_group_key(analysis_scope, item.equipment)
+        ensure_item(key, label)["previous_signal"] += 1
+
+    for item in previous_work_orders:
+        key, label = _trend_group_key(analysis_scope, item.equipment)
+        ensure_item(key, label)["previous_signal"] += 1
+
+    hot_spots: list[dict[str, int | str]] = []
+    for bucket in counters.values():
+        current_signal = int(bucket["occurrences"]) + int(bucket["alerts"]) + int(bucket["open_work_orders"])
+        previous_signal = int(bucket.pop("previous_signal"))
+        bucket["trend_direction"] = _signal_direction(current_signal, previous_signal)
+        hot_spots.append(bucket)
+
+    hot_spots.sort(
+        key=lambda item: (
+            -int(item["occurrences"]),
+            -int(item["alerts"]),
+            -int(item["open_work_orders"]),
+            str(item["label"]),
+        )
+    )
+    return hot_spots[:5]
 
 
 @router.get("/overview", response_model=DashboardOverviewResponse)
@@ -332,5 +451,120 @@ def dashboard_reports(
             occurrences_by_equipment=occurrences_by_equipment,
             work_orders_by_team=work_orders_by_team,
             work_orders_by_type=work_orders_by_type,
+        ),
+    )
+
+
+@router.get("/trends", response_model=DashboardTrendResponse)
+def dashboard_trends(
+    analysis_scope: Literal["equipment", "sector"] = Query(default="equipment"),
+    window: Literal["7", "30", "total"] = Query(default="30"),
+    equipment_id: int | None = None,
+    sector: str | None = None,
+    maintenance_type: WorkOrderType | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DashboardTrendResponse:
+    if analysis_scope == "equipment" and equipment_id is None:
+        sector = None
+    if analysis_scope == "sector":
+        equipment_id = None
+
+    _validate_manager_filters(current_user, None, sector)
+    scope, scoped_team_id, scoped_team_name = _scope_metadata(current_user)
+    window_days = _window_to_days(window)
+    work_orders, occurrences, alerts, _ = _load_dashboard_data(
+        db,
+        current_user,
+        None,
+        equipment_id=equipment_id,
+        maintenance_type=maintenance_type,
+    )
+
+    if sector is not None:
+        work_orders = [item for item in work_orders if item.equipment.sector == sector]
+        occurrences = [item for item in occurrences if item.equipment.sector == sector]
+        alerts = [item for item in alerts if item.equipment.sector == sector]
+
+    now = datetime.now(timezone.utc)
+    if window_days is None:
+        current_start = None
+        current_end = None
+        previous_start = now - timedelta(days=60)
+        previous_end = now - timedelta(days=30)
+    else:
+        current_end = now
+        current_start = now - timedelta(days=window_days)
+        previous_end = current_start
+        previous_start = current_start - timedelta(days=window_days)
+
+    current_work_orders = [
+        item for item in work_orders if _is_within_range(item.created_at, current_start, current_end)
+    ]
+    current_occurrences = [
+        item for item in occurrences if _is_within_range(item.occurred_at, current_start, current_end)
+    ]
+    current_alerts = [
+        item for item in alerts if _is_within_range(item.event_at, current_start, current_end)
+    ]
+    previous_work_orders = [
+        item for item in work_orders if _is_within_range(item.created_at, previous_start, previous_end)
+    ]
+    previous_occurrences = [
+        item for item in occurrences if _is_within_range(item.occurred_at, previous_start, previous_end)
+    ]
+    previous_alerts = [
+        item for item in alerts if _is_within_range(item.event_at, previous_start, previous_end)
+    ]
+
+    kpis = _build_kpis(current_work_orders, current_occurrences, current_alerts)
+    hot_spots = _build_trend_hot_spots(
+        analysis_scope=analysis_scope,
+        current_occurrences=current_occurrences,
+        current_alerts=current_alerts,
+        current_work_orders=current_work_orders,
+        previous_occurrences=previous_occurrences,
+        previous_alerts=previous_alerts,
+        previous_work_orders=previous_work_orders,
+    )
+
+    totals: dict[str, int | float | None] = {
+        "occurrences": len(current_occurrences),
+        "alerts": len(current_alerts),
+        "open_alerts": sum(1 for item in current_alerts if item.status == AlertStatus.ABERTO),
+        "reviewed_alerts": sum(1 for item in current_alerts if item.status == AlertStatus.REVISADO),
+        "open_work_orders": sum(
+            1 for item in current_work_orders if item.status in {WorkOrderStatus.ABERTA, WorkOrderStatus.EM_EXECUCAO}
+        ),
+        "completed_work_orders": sum(1 for item in current_work_orders if item.status == WorkOrderStatus.CONCLUIDA),
+        "corrective_percentage": kpis.corrective_percentage,
+        "preventive_percentage": kpis.preventive_percentage,
+        "mean_resolution_hours": kpis.mean_resolution_hours,
+    }
+
+    filters = {
+        "analysis_scope": analysis_scope,
+        "window": window,
+        "equipment_id": equipment_id,
+        "sector": sector,
+        "maintenance_type": maintenance_type.value if maintenance_type else None,
+    }
+
+    return DashboardTrendResponse(
+        scope=scope,
+        team_id=scoped_team_id,
+        team_name=scoped_team_name,
+        generated_at=datetime.now(timezone.utc),
+        filters=filters,
+        trend_reading=build_dashboard_trend_reading(
+            scope=scope,
+            team_name=scoped_team_name,
+            analysis_scope=analysis_scope,
+            window=window,
+            equipment_id=equipment_id,
+            sector=sector,
+            maintenance_type=maintenance_type.value if maintenance_type else None,
+            totals=totals,
+            hot_spots=hot_spots,
         ),
     )
