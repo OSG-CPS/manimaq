@@ -34,6 +34,16 @@ class WorkOrderCreate(WorkOrderBase):
     initial_note: str | None = Field(default=None, max_length=500)
 
 
+class WorkOrderEdit(BaseModel):
+    equipment_id: int
+    team_id: int
+    type: WorkOrderType
+    priority: WorkOrderPriority = WorkOrderPriority.MEDIA
+    description: str = Field(min_length=5, max_length=500)
+    planned_start_at: datetime | None = None
+    estimated_duration_hours: int | None = Field(default=None, ge=1, le=720)
+
+
 class WorkOrderStatusUpdate(BaseModel):
     status: WorkOrderStatus
     note: str | None = Field(default=None, max_length=500)

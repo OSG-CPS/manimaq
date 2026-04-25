@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, equipment_history, equipments, measurements, occurrences, protected, teams, users, work_orders
+from app.api.routes import alerts, auth, equipment_history, equipments, measurements, occurrences, protected, teams, users, work_orders
 from app.core.config import settings
 from app.db.session import init_db
 
@@ -38,3 +38,4 @@ app.include_router(occurrences.router, prefix=settings.api_prefix)
 app.include_router(measurements.router, prefix=settings.api_prefix)
 app.include_router(equipment_history.router, prefix=settings.api_prefix)
 app.include_router(work_orders.router, prefix=settings.api_prefix)
+app.include_router(alerts.router, prefix=settings.api_prefix)

@@ -9,6 +9,7 @@ from app.models.occurrence import Occurrence, OccurrenceSeverity
 from app.models.user import User, UserRole
 from app.schemas.common import EquipmentSummary, UserSummary, ensure_utc_datetime
 from app.schemas.occurrences import OccurrenceCreate, OccurrenceResponse, OccurrenceUpdate
+from app.services.alerts import maybe_create_alert_for_occurrence
 
 router = APIRouter(prefix="/occurrences", tags=["occurrences"])
 
@@ -115,6 +116,7 @@ def create_occurrence(
     db.add(occurrence)
     db.commit()
     db.refresh(occurrence)
+    maybe_create_alert_for_occurrence(db, occurrence)
     return get_occurrence(occurrence.id, current_user, db)
 
 

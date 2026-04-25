@@ -10,7 +10,13 @@ from app.models.user import User, UserRole
 from app.models.work_order import WorkOrder, WorkOrderStatus
 from app.models.work_order_status_history import WorkOrderStatusHistory
 from app.schemas.common import EquipmentSummary, TeamSummary, UserSummary, ensure_utc_datetime
-from app.schemas.work_orders import WorkOrderCreate, WorkOrderResponse, WorkOrderStatusHistoryResponse, WorkOrderStatusUpdate
+from app.schemas.work_orders import (
+    WorkOrderCreate,
+    WorkOrderEdit,
+    WorkOrderResponse,
+    WorkOrderStatusHistoryResponse,
+    WorkOrderStatusUpdate,
+)
 
 router = APIRouter(prefix="/work-orders", tags=["work-orders"])
 
@@ -112,6 +118,16 @@ def _ensure_can_update_status(work_order: WorkOrder, next_status: WorkOrderStatu
         )
 
 
+def _ensure_can_edit(work_order: WorkOrder, current_user: User) -> None:
+    if current_user.role not in {UserRole.ADMIN, UserRole.GERENTE}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissao para editar esta OS")
+    if work_order.status != WorkOrderStatus.ABERTA:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Edicao permitida apenas para OS ainda abertas",
+        )
+
+
 def _append_history(
     work_order: WorkOrder,
     previous_status: WorkOrderStatus | None,
@@ -192,6 +208,30 @@ def create_work_order(
     db.add(work_order)
     db.flush()
     _append_history(work_order, None, work_order.status, payload.initial_note, current_user.id, work_order.created_at)
+    db.commit()
+    return get_work_order(work_order.id, current_user, db)
+
+
+@router.put("/{work_order_id}", response_model=WorkOrderResponse)
+def edit_work_order(
+    work_order_id: int,
+    payload: WorkOrderEdit,
+    current_user: User = Depends(require_admin_or_manager),
+    db: Session = Depends(get_db),
+) -> WorkOrderResponse:
+    work_order = _get_work_order_or_404(work_order_id, db)
+    _ensure_can_edit(work_order, current_user)
+    _get_equipment_or_404(payload.equipment_id, db)
+    _get_active_team_or_400(payload.team_id, db)
+
+    work_order.equipment_id = payload.equipment_id
+    work_order.team_id = payload.team_id
+    work_order.type = payload.type
+    work_order.priority = payload.priority
+    work_order.description = payload.description.strip()
+    work_order.planned_start_at = payload.planned_start_at
+    work_order.estimated_duration_hours = payload.estimated_duration_hours
+
     db.commit()
     return get_work_order(work_order.id, current_user, db)
 

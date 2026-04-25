@@ -9,6 +9,7 @@ from app.models.measurement import Measurement, MeasurementType
 from app.models.user import User, UserRole
 from app.schemas.common import EquipmentSummary, UserSummary, ensure_utc_datetime
 from app.schemas.measurements import DEFAULT_UNITS, MeasurementCreate, MeasurementResponse
+from app.services.alerts import maybe_create_alert_for_measurement
 
 router = APIRouter(prefix="/measurements", tags=["measurements"])
 
@@ -78,6 +79,7 @@ def create_measurement(
     db.add(measurement)
     db.commit()
     db.refresh(measurement)
+    maybe_create_alert_for_measurement(db, measurement)
 
     measurement = (
         db.query(Measurement)

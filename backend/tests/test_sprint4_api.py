@@ -193,6 +193,84 @@ class Sprint4ApiTestCase(unittest.TestCase):
         detail_response = self.client.get(f"/api/work-orders/{work_order_id}", headers=other_operator_headers)
         self.assertEqual(detail_response.status_code, 403, detail_response.text)
 
+    def test_manager_can_edit_open_work_order_and_cannot_edit_after_execution(self) -> None:
+        admin_token = self._login("admin.s4", "Senha@123")
+        operator_token = self._login("operador.s4", "Senha@123")
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        operator_headers = {"Authorization": f"Bearer {operator_token}"}
+
+        create_response = self.client.post(
+            "/api/work-orders",
+            headers=admin_headers,
+            json={
+                "equipment_id": 1,
+                "team_id": 1,
+                "type": "corretiva",
+                "priority": "media",
+                "description": "OS para ajuste de equipe",
+                "origin": "manual",
+            },
+        )
+        self.assertEqual(create_response.status_code, 201, create_response.text)
+        work_order_id = create_response.json()["id"]
+
+        edit_response = self.client.put(
+            f"/api/work-orders/{work_order_id}",
+            headers=admin_headers,
+            json={
+                "equipment_id": 1,
+                "team_id": 2,
+                "type": "preventiva",
+                "priority": "alta",
+                "description": "OS corrigida para equipe de apoio",
+                "planned_start_at": "2026-04-24T18:00:00Z",
+                "estimated_duration_hours": 6,
+            },
+        )
+        self.assertEqual(edit_response.status_code, 200, edit_response.text)
+        edited_payload = edit_response.json()
+        self.assertEqual(edited_payload["team_id"], 2)
+        self.assertEqual(edited_payload["type"], "preventiva")
+        self.assertEqual(edited_payload["priority"], "alta")
+        self.assertEqual(edited_payload["description"], "OS corrigida para equipe de apoio")
+
+        start_response = self.client.post(
+            f"/api/work-orders/{work_order_id}/status",
+            headers=admin_headers,
+            json={"status": "em_execucao", "note": "Inicio da execucao"},
+        )
+        self.assertEqual(start_response.status_code, 200, start_response.text)
+
+        blocked_edit_response = self.client.put(
+            f"/api/work-orders/{work_order_id}",
+            headers=admin_headers,
+            json={
+                "equipment_id": 1,
+                "team_id": 1,
+                "type": "corretiva",
+                "priority": "media",
+                "description": "Tentativa indevida apos execucao",
+                "planned_start_at": "2026-04-24T20:00:00Z",
+                "estimated_duration_hours": 2,
+            },
+        )
+        self.assertEqual(blocked_edit_response.status_code, 400, blocked_edit_response.text)
+
+        operator_edit_response = self.client.put(
+            f"/api/work-orders/{work_order_id}",
+            headers=operator_headers,
+            json={
+                "equipment_id": 1,
+                "team_id": 1,
+                "type": "corretiva",
+                "priority": "media",
+                "description": "Operador nao pode editar",
+                "planned_start_at": "2026-04-24T20:00:00Z",
+                "estimated_duration_hours": 2,
+            },
+        )
+        self.assertEqual(operator_edit_response.status_code, 403, operator_edit_response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -22,6 +22,8 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_sprint3_columns()
     _ensure_sprint4_columns()
+    _ensure_sprint5_columns()
+    _ensure_sprint55_columns()
 
 
 def _ensure_sprint3_columns() -> None:
@@ -64,3 +66,41 @@ def _ensure_sprint4_columns() -> None:
                     "UPDATE work_order_status_history SET transition_at = created_at WHERE transition_at IS NULL"
                 )
             )
+
+
+def _ensure_sprint5_columns() -> None:
+    inspector = inspect(engine)
+
+    with engine.begin() as connection:
+        table_name = "alerts"
+        if table_name not in inspector.get_table_names():
+            return
+
+        existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+
+        if "status" not in existing_columns:
+            connection.execute(text("ALTER TABLE alerts ADD COLUMN status VARCHAR(20)"))
+            connection.execute(text("UPDATE alerts SET status = 'ABERTO' WHERE status IS NULL"))
+
+
+def _ensure_sprint55_columns() -> None:
+    inspector = inspect(engine)
+
+    with engine.begin() as connection:
+        table_name = "equipments"
+        if table_name not in inspector.get_table_names():
+            return
+
+        existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+        new_columns = {
+            "alert_measurement_type": "VARCHAR(20)",
+            "measurement_unit": "VARCHAR(20)",
+            "alert_threshold_low": "FLOAT",
+            "alert_threshold_medium": "FLOAT",
+            "alert_threshold_high": "FLOAT",
+            "alert_threshold_critical": "FLOAT",
+        }
+
+        for column_name, sql_type in new_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(text(f"ALTER TABLE equipments ADD COLUMN {column_name} {sql_type}"))

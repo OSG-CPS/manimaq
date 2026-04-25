@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { fetchApi } from "@/lib/api";
 import { canAccessAdminModules, getStoredSession } from "@/lib/auth";
@@ -11,6 +12,7 @@ type EquipmentOption = {
   name: string;
   sector: string;
   active: boolean;
+  team_id: number | null;
 };
 
 type TeamOption = {
@@ -59,6 +61,30 @@ type WorkOrderRecord = {
   updated_at: string;
 };
 
+type AlertPrefill = {
+  id: number;
+  equipment_id: number;
+  title: string;
+  message: string;
+  recommendation: string | null;
+  equipment: EquipmentOption;
+  suggested_work_order: {
+    suggested: boolean;
+    type: "corretiva" | "preventiva" | null;
+    priority: "baixa" | "media" | "alta" | "critica" | null;
+  };
+};
+
+type WorkOrderEditPayload = {
+  equipment_id: number;
+  team_id: number;
+  type: "corretiva" | "preventiva";
+  priority: "baixa" | "media" | "alta" | "critica";
+  description: string;
+  planned_start_at: string | null;
+  estimated_duration_hours: number | null;
+};
+
 function getDefaultDateTimeLocal() {
   const now = new Date();
   const adjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
@@ -78,6 +104,7 @@ const initialForm = {
   planned_start_at: getDefaultDateTimeLocal(),
   estimated_duration_hours: "2",
   initial_note: "",
+  origin: "manual",
 };
 
 const statusLabels: Record<WorkOrderStatus, string> = {
@@ -88,6 +115,7 @@ const statusLabels: Record<WorkOrderStatus, string> = {
 };
 
 export default function WorkOrdersPage() {
+  const searchParams = useSearchParams();
   const session = getStoredSession();
   const canManage = canAccessAdminModules(session?.user.role);
   const currentTeamId = session?.user.team_id ?? null;
@@ -96,6 +124,7 @@ export default function WorkOrdersPage() {
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrderRecord[]>([]);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrderRecord | null>(null);
+  const [editingWorkOrderId, setEditingWorkOrderId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [statusNote, setStatusNote] = useState("");
   const [statusTransitionAt, setStatusTransitionAt] = useState(getDefaultDateTimeLocal());
@@ -104,6 +133,7 @@ export default function WorkOrdersPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [prefillMessage, setPrefillMessage] = useState("");
   const [form, setForm] = useState(initialForm);
 
   async function loadWorkOrders(filter = statusFilter) {
@@ -116,6 +146,12 @@ export default function WorkOrdersPage() {
       if (selectedWorkOrder) {
         const refreshed = data.find((item) => item.id === selectedWorkOrder.id) ?? null;
         setSelectedWorkOrder(refreshed);
+      }
+      if (editingWorkOrderId) {
+        const refreshedEditing = data.find((item) => item.id === editingWorkOrderId) ?? null;
+        if (!refreshedEditing) {
+          setEditingWorkOrderId(null);
+        }
       }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Falha ao carregar OS.");
@@ -154,7 +190,42 @@ export default function WorkOrdersPage() {
     void bootstrap();
   }, []);
 
+  useEffect(() => {
+    async function applyAlertPrefill() {
+      const alertId = searchParams.get("alert_id");
+      if (!alertId || !canManage) {
+        return;
+      }
+
+      try {
+        const alert = await fetchApi<AlertPrefill>(`/alerts/${alertId}`);
+        setForm((current) => ({
+          ...current,
+          equipment_id: String(alert.equipment_id),
+          team_id:
+            alert.equipment.team_id !== null
+              ? String(alert.equipment.team_id)
+              : current.team_id || (teams[0] ? String(teams[0].id) : ""),
+          type: alert.suggested_work_order.type ?? "corretiva",
+          priority: alert.suggested_work_order.priority ?? "alta",
+          description: `${alert.title}. ${alert.message}`,
+          initial_note: alert.recommendation ?? current.initial_note,
+          origin: "sugerida",
+        }));
+        setPrefillMessage(`Formulario pre-preenchido a partir do alerta #${alert.id}.`);
+      } catch (requestError) {
+        setError(requestError instanceof Error ? requestError.message : "Falha ao carregar dados do alerta.");
+      }
+    }
+
+    if (equipments.length > 0) {
+      void applyAlertPrefill();
+    }
+  }, [canManage, equipments.length, searchParams, teams]);
+
   function resetForm() {
+    setEditingWorkOrderId(null);
+    setPrefillMessage("");
     setForm({
       ...initialForm,
       equipment_id: equipments[0] ? String(equipments[0].id) : "",
@@ -169,6 +240,26 @@ export default function WorkOrdersPage() {
     setStatusTransitionAt(getDefaultDateTimeLocal());
   }
 
+  function startEditingWorkOrder(workOrder: WorkOrderRecord) {
+    setEditingWorkOrderId(workOrder.id);
+    setPrefillMessage("");
+    setForm({
+      equipment_id: String(workOrder.equipment_id),
+      team_id: String(workOrder.team_id),
+      type: workOrder.type,
+      priority: workOrder.priority,
+      description: workOrder.description,
+      planned_start_at: workOrder.planned_start_at
+        ? new Date(new Date(workOrder.planned_start_at).getTime() - new Date(workOrder.planned_start_at).getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 16)
+        : getDefaultDateTimeLocal(),
+      estimated_duration_hours: workOrder.estimated_duration_hours ? String(workOrder.estimated_duration_hours) : "",
+      initial_note: "",
+      origin: workOrder.origin,
+    });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
@@ -176,21 +267,38 @@ export default function WorkOrdersPage() {
     setMessage("");
 
     try {
-      await fetchApi<WorkOrderRecord>("/work-orders", {
-        method: "POST",
-        body: JSON.stringify({
+      if (editingWorkOrderId) {
+        const payload: WorkOrderEditPayload = {
           equipment_id: Number(form.equipment_id),
           team_id: Number(form.team_id),
           type: form.type,
           priority: form.priority,
           description: form.description,
-          origin: "manual",
           planned_start_at: toApiDateTime(form.planned_start_at),
           estimated_duration_hours: form.estimated_duration_hours ? Number(form.estimated_duration_hours) : null,
-          initial_note: form.initial_note || null,
-        }),
-      });
-      setMessage("OS criada com sucesso.");
+        };
+        await fetchApi<WorkOrderRecord>(`/work-orders/${editingWorkOrderId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        setMessage("OS atualizada com sucesso.");
+      } else {
+        await fetchApi<WorkOrderRecord>("/work-orders", {
+          method: "POST",
+          body: JSON.stringify({
+            equipment_id: Number(form.equipment_id),
+            team_id: Number(form.team_id),
+            type: form.type,
+            priority: form.priority,
+            description: form.description,
+            origin: form.origin,
+            planned_start_at: toApiDateTime(form.planned_start_at),
+            estimated_duration_hours: form.estimated_duration_hours ? Number(form.estimated_duration_hours) : null,
+            initial_note: form.initial_note || null,
+          }),
+        });
+        setMessage("OS criada com sucesso.");
+      }
       resetForm();
       await loadWorkOrders();
     } catch (requestError) {
@@ -275,6 +383,7 @@ export default function WorkOrdersPage() {
             {loading ? <p className="helper-text">Carregando OS...</p> : null}
             {error ? <div className="error-box">{error}</div> : null}
             {message ? <div className="success-box">{message}</div> : null}
+            {prefillMessage ? <div className="success-box">{prefillMessage}</div> : null}
 
             <div className="table-list">
               {workOrders.map((workOrder) => (
@@ -300,6 +409,15 @@ export default function WorkOrdersPage() {
                     >
                       Detalhar
                     </button>
+                    {canManage && workOrder.status === "aberta" ? (
+                      <button
+                        className="secondary-button inline-button"
+                        onClick={() => startEditingWorkOrder(workOrder)}
+                        type="button"
+                      >
+                        Editar
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -406,7 +524,14 @@ export default function WorkOrdersPage() {
             <>
               <div className="stack-sm">
                 <h3 className="section-title">Nova OS</h3>
-                <p className="helper-text">Use este bloco para abrir e encaminhar uma OS para a equipe responsavel.</p>
+                <p className="helper-text">
+                  {editingWorkOrderId
+                    ? "Corrija equipe, prioridade e demais dados da OS enquanto ela ainda estiver aberta."
+                    : "Use este bloco para abrir e encaminhar uma OS para a equipe responsavel."}
+                </p>
+                {form.origin === "sugerida" ? (
+                  <p className="helper-text">Esta abertura foi iniciada a partir de um alerta e ja veio pre-preenchida.</p>
+                ) : null}
               </div>
 
               <form className="stack" onSubmit={handleSubmit}>
@@ -520,9 +645,16 @@ export default function WorkOrdersPage() {
                   />
                 </label>
 
-                <button className="primary-button" disabled={submitting} type="submit">
-                  {submitting ? "Salvando..." : "Abrir OS"}
-                </button>
+                <div className="toolbar-inline">
+                  <button className="primary-button" disabled={submitting} type="submit">
+                    {submitting ? "Salvando..." : editingWorkOrderId ? "Salvar OS" : "Abrir OS"}
+                  </button>
+                  {editingWorkOrderId ? (
+                    <button className="secondary-button" onClick={resetForm} type="button">
+                      Cancelar edicao
+                    </button>
+                  ) : null}
+                </div>
               </form>
             </>
           ) : (

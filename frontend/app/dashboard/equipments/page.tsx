@@ -21,6 +21,12 @@ type EquipmentRecord = {
   status: string;
   active: boolean;
   team_id: number | null;
+  alert_measurement_type: "vibracao" | "temperatura" | "tensao" | "corrente" | null;
+  measurement_unit: string | null;
+  alert_threshold_low: number | null;
+  alert_threshold_medium: number | null;
+  alert_threshold_high: number | null;
+  alert_threshold_critical: number | null;
   team: TeamOption | null;
   created_at: string;
   updated_at: string;
@@ -33,6 +39,12 @@ const initialForm = {
   criticality: "media",
   status: "ativo",
   team_id: "",
+  alert_measurement_type: "",
+  measurement_unit: "",
+  alert_threshold_low: "",
+  alert_threshold_medium: "",
+  alert_threshold_high: "",
+  alert_threshold_critical: "",
   active: true,
 };
 
@@ -102,6 +114,12 @@ export default function EquipmentsPage() {
       criticality: form.criticality,
       status: form.status,
       team_id: form.team_id ? Number(form.team_id) : null,
+      alert_measurement_type: form.alert_measurement_type || null,
+      measurement_unit: form.measurement_unit || null,
+      alert_threshold_low: form.alert_threshold_low ? Number(form.alert_threshold_low) : null,
+      alert_threshold_medium: form.alert_threshold_medium ? Number(form.alert_threshold_medium) : null,
+      alert_threshold_high: form.alert_threshold_high ? Number(form.alert_threshold_high) : null,
+      alert_threshold_critical: form.alert_threshold_critical ? Number(form.alert_threshold_critical) : null,
       active: form.active,
     };
 
@@ -135,7 +153,9 @@ export default function EquipmentsPage() {
         <header className="panel stack">
           <p className="helper-text">Cadastro administrativo</p>
           <h2 className="section-title">Equipamentos</h2>
-          <p className="helper-text">TAG unica, detalhamento simples e vinculo opcional com equipe ativa.</p>
+          <p className="helper-text">
+            TAG unica, detalhamento simples, vinculo opcional com equipe ativa e thresholds de alerta por equipamento.
+          </p>
         </header>
 
         <section className="module-grid">
@@ -162,11 +182,16 @@ export default function EquipmentsPage() {
                   <div>
                     <strong>{equipment.tag}</strong>
                     <p className="helper-text">
-                      {equipment.name} · {equipment.sector}
+                      {equipment.name} - {equipment.sector}
                     </p>
                     <p className="helper-text">
-                      {equipment.criticality} · {equipment.status} · {equipment.active ? "Ativo" : "Inativo"}
+                      {equipment.criticality} - {equipment.status} - {equipment.active ? "Ativo" : "Inativo"}
                     </p>
+                    {equipment.alert_measurement_type && equipment.measurement_unit ? (
+                      <p className="helper-text">
+                        alerta por {equipment.alert_measurement_type} em {equipment.measurement_unit}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="row-actions">
                     <button
@@ -187,6 +212,16 @@ export default function EquipmentsPage() {
                           criticality: equipment.criticality,
                           status: equipment.status,
                           team_id: equipment.team_id ? String(equipment.team_id) : "",
+                          alert_measurement_type: equipment.alert_measurement_type ?? "",
+                          measurement_unit: equipment.measurement_unit ?? "",
+                          alert_threshold_low:
+                            equipment.alert_threshold_low !== null ? String(equipment.alert_threshold_low) : "",
+                          alert_threshold_medium:
+                            equipment.alert_threshold_medium !== null ? String(equipment.alert_threshold_medium) : "",
+                          alert_threshold_high:
+                            equipment.alert_threshold_high !== null ? String(equipment.alert_threshold_high) : "",
+                          alert_threshold_critical:
+                            equipment.alert_threshold_critical !== null ? String(equipment.alert_threshold_critical) : "",
                           active: equipment.active,
                         });
                       }}
@@ -245,9 +280,7 @@ export default function EquipmentsPage() {
                 <input
                   className="input"
                   id="equipment-criticality"
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, criticality: event.target.value }))
-                  }
+                  onChange={(event) => setForm((current) => ({ ...current, criticality: event.target.value }))}
                   required
                   value={form.criticality}
                 />
@@ -279,6 +312,91 @@ export default function EquipmentsPage() {
                     </option>
                   ))}
                 </select>
+              </label>
+
+              <label className="label" htmlFor="equipment-alert-measurement-type">
+                Tipo principal de medicao para alerta
+                <select
+                  className="input"
+                  id="equipment-alert-measurement-type"
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, alert_measurement_type: event.target.value }))
+                  }
+                  value={form.alert_measurement_type}
+                >
+                  <option value="">Sem configuracao</option>
+                  <option value="vibracao">Vibracao</option>
+                  <option value="temperatura">Temperatura</option>
+                  <option value="tensao">Tensao</option>
+                  <option value="corrente">Corrente</option>
+                </select>
+              </label>
+
+              <label className="label" htmlFor="equipment-measurement-unit">
+                Unidade de medida
+                <input
+                  className="input"
+                  id="equipment-measurement-unit"
+                  onChange={(event) => setForm((current) => ({ ...current, measurement_unit: event.target.value }))}
+                  placeholder="Ex.: C, mm/s, V, A"
+                  value={form.measurement_unit}
+                />
+              </label>
+
+              <label className="label" htmlFor="equipment-alert-threshold-low">
+                Limiar baixo
+                <input
+                  className="input"
+                  id="equipment-alert-threshold-low"
+                  min="0"
+                  onChange={(event) => setForm((current) => ({ ...current, alert_threshold_low: event.target.value }))}
+                  step="0.01"
+                  type="number"
+                  value={form.alert_threshold_low}
+                />
+              </label>
+
+              <label className="label" htmlFor="equipment-alert-threshold-medium">
+                Limiar medio
+                <input
+                  className="input"
+                  id="equipment-alert-threshold-medium"
+                  min="0"
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, alert_threshold_medium: event.target.value }))
+                  }
+                  step="0.01"
+                  type="number"
+                  value={form.alert_threshold_medium}
+                />
+              </label>
+
+              <label className="label" htmlFor="equipment-alert-threshold-high">
+                Limiar alto
+                <input
+                  className="input"
+                  id="equipment-alert-threshold-high"
+                  min="0"
+                  onChange={(event) => setForm((current) => ({ ...current, alert_threshold_high: event.target.value }))}
+                  step="0.01"
+                  type="number"
+                  value={form.alert_threshold_high}
+                />
+              </label>
+
+              <label className="label" htmlFor="equipment-alert-threshold-critical">
+                Limiar critico
+                <input
+                  className="input"
+                  id="equipment-alert-threshold-critical"
+                  min="0"
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, alert_threshold_critical: event.target.value }))
+                  }
+                  step="0.01"
+                  type="number"
+                  value={form.alert_threshold_critical}
+                />
               </label>
 
               {editingId ? (
@@ -314,6 +432,15 @@ export default function EquipmentsPage() {
                 <p className="helper-text">Status: {selectedEquipment.status}</p>
                 <p className="helper-text">
                   Equipe: {selectedEquipment.team ? selectedEquipment.team.name : "Sem vinculacao"}
+                </p>
+                <p className="helper-text">
+                  Medicao de alerta: {selectedEquipment.alert_measurement_type ?? "Nao configurada"}
+                </p>
+                <p className="helper-text">Unidade: {selectedEquipment.measurement_unit ?? "Nao configurada"}</p>
+                <p className="helper-text">
+                  Limiares: baixo {selectedEquipment.alert_threshold_low ?? "--"} | medio{" "}
+                  {selectedEquipment.alert_threshold_medium ?? "--"} | alto {selectedEquipment.alert_threshold_high ?? "--"} |
+                  critico {selectedEquipment.alert_threshold_critical ?? "--"}
                 </p>
               </div>
             ) : null}

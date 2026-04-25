@@ -363,6 +363,11 @@ textarea {
   color: var(--danger);
 }
 
+.alert-status-revisado {
+  background: rgba(15, 109, 95, 0.12);
+  color: var(--accent-dark);
+}
+
 .priority-media {
   background: rgba(224, 173, 46, 0.18);
   color: #8f5d00;

@@ -63,8 +63,8 @@ export default function DashboardPage() {
 
         <article className="grid-card">
           <h2>Sprint</h2>
-          <p className="metric">SPT4</p>
-          <p className="helper-text">Ordens de servico com historico de status agora fazem parte do fluxo.</p>
+          <p className="metric">SPT5</p>
+          <p className="helper-text">Alertas por regra e IA agora entram no fluxo operacional do MVP.</p>
         </article>
       </section>
 
@@ -76,10 +76,15 @@ export default function DashboardPage() {
           <li>Validacoes de email unico, TAG unica e bloqueio de equipe inativa.</li>
           <li>Fluxos operacionais prontos para registrar ocorrencias e medicoes com autor e data/hora.</li>
           <li>Ordens de servico podem ser abertas por gestao e executadas pela equipe responsavel com rastreabilidade.</li>
+          <li>Alertas podem ser gerados a partir de ocorrencias e medicoes com sugestao de OS para analise gerencial.</li>
         </ul>
       </section>
 
       <section className="grid-layout">
+        <Link className="grid-card card-link" href="/dashboard/alerts">
+          <h2>Alertas</h2>
+          <p className="helper-text">Consultar alertas por regra e enriquecimento de IA com sugestao de OS.</p>
+        </Link>
         <Link className="grid-card card-link" href="/dashboard/work-orders">
           <h2>Ordens de Servico</h2>
           <p className="helper-text">Abrir OS, acompanhar fila da equipe e registrar execucao e conclusao.</p>

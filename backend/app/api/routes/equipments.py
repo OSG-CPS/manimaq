@@ -49,6 +49,12 @@ def _serialize(equipment: Equipment) -> EquipmentResponse:
         status=equipment.status,
         active=equipment.active,
         team_id=equipment.team_id,
+        alert_measurement_type=equipment.alert_measurement_type,
+        measurement_unit=equipment.measurement_unit,
+        alert_threshold_low=equipment.alert_threshold_low,
+        alert_threshold_medium=equipment.alert_threshold_medium,
+        alert_threshold_high=equipment.alert_threshold_high,
+        alert_threshold_critical=equipment.alert_threshold_critical,
         team=team,
         created_at=equipment.created_at,
         updated_at=equipment.updated_at,
@@ -119,6 +125,12 @@ def create_equipment(
         status=_normalize_text(payload.status),
         team_id=payload.team_id,
         active=True,
+        alert_measurement_type=payload.alert_measurement_type,
+        measurement_unit=payload.measurement_unit.strip() if payload.measurement_unit else None,
+        alert_threshold_low=payload.alert_threshold_low,
+        alert_threshold_medium=payload.alert_threshold_medium,
+        alert_threshold_high=payload.alert_threshold_high,
+        alert_threshold_critical=payload.alert_threshold_critical,
     )
     db.add(equipment)
     db.commit()
@@ -155,6 +167,12 @@ def update_equipment(
     equipment.status = _normalize_text(payload.status)
     equipment.team_id = payload.team_id
     equipment.active = payload.active
+    equipment.alert_measurement_type = payload.alert_measurement_type
+    equipment.measurement_unit = payload.measurement_unit.strip() if payload.measurement_unit else None
+    equipment.alert_threshold_low = payload.alert_threshold_low
+    equipment.alert_threshold_medium = payload.alert_threshold_medium
+    equipment.alert_threshold_high = payload.alert_threshold_high
+    equipment.alert_threshold_critical = payload.alert_threshold_critical
 
     db.commit()
     db.refresh(equipment)

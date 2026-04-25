@@ -20,6 +20,7 @@ class EquipmentSummary(BaseModel):
     name: str
     sector: str
     active: bool
+    team_id: int | None = None
 
 
 class UserSummary(BaseModel):

@@ -11,6 +11,7 @@ import { AuthSession, AuthUser, canAccessAdminModules, getStoredSession, saveSes
 
 const navigationItems = [
   { href: "/dashboard", label: "Resumo" },
+  { href: "/dashboard/alerts", label: "Alertas", adminOnly: false },
   { href: "/dashboard/work-orders", label: "Ordens de Servico", adminOnly: false },
   { href: "/dashboard/occurrences", label: "Ocorrencias", adminOnly: false },
   { href: "/dashboard/measurements", label: "Medicoes", adminOnly: false },
@@ -61,7 +62,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <section className="dashboard-frame dashboard-grid">
           <aside className="sidebar-panel stack">
             <div className="stack">
-              <p className="helper-text">Sprint 4 em execucao</p>
+              <p className="helper-text">Sprint 5 em execucao</p>
               <h1 className="sidebar-title">Manimaq</h1>
               <p className="helper-text">
                 {session ? `${session.user.name} (${session.user.role})` : "Carregando sessao..."}
@@ -93,8 +94,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <div className="sidebar-footer stack">
               <p className="helper-text">
                 {canManage
-                  ? "Fluxos operacionais, ordens de servico e modulos administrativos liberados para este perfil."
-                  : "Seu perfil pode atuar nas OS da propria equipe, alem de operar ocorrencias, medicoes e historico."}
+                  ? "Fluxos operacionais, alertas, ordens de servico e modulos administrativos liberados para este perfil."
+                  : "Seu perfil pode consultar alertas da propria equipe, alem de operar ocorrencias, medicoes e historico."}
               </p>
               <LogoutButton />
             </div>
