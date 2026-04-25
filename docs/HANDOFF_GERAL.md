@@ -33,6 +33,32 @@ Este `HANDOFF_GERAL.md` consolida as decisões mais recentes e deve ser usado co
 
 ---
 
+## 2.1 Estado atual consolidado
+
+Neste momento, o projeto já concluiu o bloco principal do MVP, incluindo:
+
+- autenticação com JWT
+- bootstrap inicial do primeiro administrador quando o banco está vazio
+- CRUD de usuários, equipes e equipamentos
+- ocorrências, medições e histórico por equipamento
+- ordens de serviço com histórico de status
+- alertas por regras
+- thresholds por equipamento
+- abertura manual de OS a partir de alerta
+- dashboard com KPIs reais
+- relatórios básicos
+- leitura analítica com IA na área de relatórios
+- relatório de tendências por equipamento e por setor
+
+Pendências principais de acabamento:
+
+- validar `next build` em ambiente estável
+- pente fino funcional e visual da área de relatórios e tendências
+- calibrar linguagem e classificação assistiva da camada analítica
+- decidir se haverá exportação simples de relatórios no acabamento do MVP
+
+---
+
 ## 3. Visão do produto
 
 Sistema web responsivo, para uso em rede local, acessível por desktop e celular, com foco em:
@@ -86,6 +112,7 @@ Fora do MVP inicial:
 - autenticação por `username` ou `email` + senha
 - senha com hash no backend
 - autenticação com `JWT`
+- quando o banco estiver vazio, o sistema deve permitir bootstrap do primeiro administrador pela tela de login
 - chave da OpenAI armazenada em `.env`
 - nome esperado da variável: `OPENAI_API_KEY`
 - frontend nunca deve chamar a OpenAI diretamente
@@ -122,6 +149,7 @@ Fora do MVP inicial:
 - exportação inicial simples
 - IA não substitui regras determinísticas
 - UI pode ser simples, desde que funcional e responsiva
+- seed histórica de 6 meses existe apenas para ambiente de demonstração/teste e não é obrigatória para bootstrap do sistema
 
 ---
 
@@ -169,7 +197,7 @@ Exemplos de TAGs/equipamentos por setor:
 
 ---
 
-## 8. Planejamento macro por sprint
+## 8. Roadmap consolidado
 
 ### Sprint 1
 
@@ -220,6 +248,15 @@ Exemplos de TAGs/equipamentos por setor:
 - leitura analítica por IA
 - refinamento gerencial das recomendações e análises
 
+### Pós-S7.5
+
+- pente fino funcional
+- calibracao analitica
+- validacao final de build
+- eventual exportacao simples de relatorios
+
+Todas as sprints de S1 a S7.5 já foram concluídas no fluxo atual de desenvolvimento.
+
 ---
 
 ## 9. Regras para novas threads de sprint
@@ -262,5 +299,6 @@ Priorizar sempre:
 - controle de acesso por perfil
 - rastreabilidade operacional
 - base pronta para a camada de IA nas sprints posteriores
+- clareza de documentação para operação local e em LAN
 
 Este projeto deve evoluir sprint a sprint, com handoffs curtos, claros e reaproveitáveis entre threads.

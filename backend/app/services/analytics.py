@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any
 from urllib import error, request
@@ -23,6 +24,7 @@ ANALYTICS_DISCLAIMER = (
 TREND_DISCLAIMER = (
     "Analise de tendencias assistida por IA com carater consultivo. Indica sinais de monitoramento e priorizacao, sem prever falha de forma deterministica."
 )
+logger = logging.getLogger(__name__)
 
 
 def build_dashboard_analytical_reading(
@@ -48,6 +50,10 @@ def build_dashboard_analytical_reading(
     )
     ai_reading = _get_ai_reading(payload)
     if ai_reading is not None:
+        logger.info(
+            "Analytics reading generated with OpenAI",
+            extra={"analytics_scope": scope, "period_days": period_days, "team_name": team_name},
+        )
         return DashboardAnalyticalReading(
             source="ai",
             model=ANALYTICS_MODEL,
@@ -61,6 +67,10 @@ def build_dashboard_analytical_reading(
         )
 
     fallback = _build_fallback_reading(payload)
+    logger.info(
+        "Analytics reading falling back to local heuristics",
+        extra={"analytics_scope": scope, "period_days": period_days, "team_name": team_name},
+    )
     return DashboardAnalyticalReading(
         source="fallback",
         model=None,
@@ -172,6 +182,15 @@ def build_dashboard_trend_reading(
 
     ai_reading = _get_ai_trend_reading(payload)
     if ai_reading is not None:
+        logger.info(
+            "Trend reading generated with OpenAI",
+            extra={
+                "analytics_scope": scope,
+                "analysis_scope": analysis_scope,
+                "window": window,
+                "team_name": team_name,
+            },
+        )
         return DashboardTrendReading(
             source="ai",
             model=ANALYTICS_MODEL,
@@ -189,6 +208,15 @@ def build_dashboard_trend_reading(
         )
 
     fallback = _build_fallback_trend_reading(payload)
+    logger.info(
+        "Trend reading falling back to local heuristics",
+        extra={
+            "analytics_scope": scope,
+            "analysis_scope": analysis_scope,
+            "window": window,
+            "team_name": team_name,
+        },
+    )
     return DashboardTrendReading(
         source="fallback",
         model=None,
@@ -259,6 +287,7 @@ def _request_openai_json(
     schema: dict[str, Any],
 ) -> dict[str, Any] | None:
     if not settings.openai_api_key.strip():
+        logger.warning("OpenAI analytics request skipped because OPENAI_API_KEY is empty")
         return None
 
     request_payload = {
@@ -306,18 +335,79 @@ def _request_openai_json(
     try:
         with request.urlopen(req, timeout=20) as response:
             body = json.loads(response.read().decode("utf-8"))
-    except (TimeoutError, error.URLError, error.HTTPError, json.JSONDecodeError):
+    except TimeoutError:
+        logger.warning("OpenAI analytics request timed out", extra={"schema_name": schema_name})
+        return None
+    except error.HTTPError as exc:
+        response_excerpt = ""
+        try:
+            response_excerpt = exc.read().decode("utf-8", errors="ignore")[:300]
+        except Exception:  # pragma: no cover - defensive logging path
+            response_excerpt = ""
+        logger.warning(
+            "OpenAI analytics request failed with HTTP error",
+            extra={"schema_name": schema_name, "status_code": exc.code, "response_excerpt": response_excerpt},
+        )
+        return None
+    except error.URLError as exc:
+        logger.warning(
+            "OpenAI analytics request failed with URL error",
+            extra={"schema_name": schema_name, "reason": str(exc.reason)},
+        )
+        return None
+    except json.JSONDecodeError:
+        logger.warning("OpenAI analytics request returned invalid JSON body", extra={"schema_name": schema_name})
         return None
 
     output_text = body.get("output_text")
+    if (not isinstance(output_text, str) or not output_text.strip()) and isinstance(body.get("output"), list):
+        output_text = _extract_output_text_from_response_items(body["output"])
     if not isinstance(output_text, str) or not output_text.strip():
+        logger.warning(
+            "OpenAI analytics response did not include parsable text output",
+            extra={"schema_name": schema_name, "response_keys": sorted(body.keys())},
+        )
         return None
 
     try:
         parsed = json.loads(output_text)
     except json.JSONDecodeError:
+        logger.warning(
+            "OpenAI analytics output_text was not valid JSON for requested schema",
+            extra={"schema_name": schema_name, "output_excerpt": output_text[:300]},
+        )
         return None
+    logger.info("OpenAI analytics request succeeded", extra={"schema_name": schema_name, "model": ANALYTICS_MODEL})
     return parsed
+
+
+def _extract_output_text_from_response_items(output_items: list[Any]) -> str | None:
+    text_chunks: list[str] = []
+
+    for item in output_items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") != "message":
+            continue
+        content = item.get("content")
+        if not isinstance(content, list):
+            continue
+        for content_item in content:
+            if not isinstance(content_item, dict):
+                continue
+            content_type = content_item.get("type")
+            if content_type in {"output_text", "text"}:
+                text = content_item.get("text")
+                if isinstance(text, str) and text.strip():
+                    text_chunks.append(text)
+            elif content_type == "refusal":
+                refusal_text = content_item.get("refusal")
+                if isinstance(refusal_text, str) and refusal_text.strip():
+                    logger.warning("OpenAI analytics response returned a refusal", extra={"refusal_excerpt": refusal_text[:300]})
+
+    if not text_chunks:
+        return None
+    return "\n".join(text_chunks)
 
 
 def _is_valid_ai_reading(parsed: Any) -> bool:

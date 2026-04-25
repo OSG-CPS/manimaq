@@ -4,7 +4,7 @@ type RequestOptions = RequestInit & {
   skipJsonBody?: boolean;
 };
 
-function extractErrorMessage(data: unknown): string {
+export function extractErrorMessage(data: unknown): string {
   if (!data || typeof data !== "object") {
     return "Falha na requisicao.";
   }

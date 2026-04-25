@@ -24,7 +24,28 @@ export type AuthSession = {
 };
 
 export function getApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api";
+  const configuredBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api";
+
+  if (typeof window === "undefined") {
+    return configuredBaseUrl;
+  }
+
+  try {
+    const url = new URL(configuredBaseUrl);
+    const currentHostname = window.location.hostname;
+    const isLocalApiHost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    const isRemoteClient =
+      currentHostname !== "localhost" && currentHostname !== "127.0.0.1" && currentHostname.trim() !== "";
+
+    if (isLocalApiHost && isRemoteClient) {
+      url.hostname = currentHostname;
+      return url.toString().replace(/\/$/, "");
+    }
+  } catch {
+    return configuredBaseUrl;
+  }
+
+  return configuredBaseUrl;
 }
 
 export function getStoredSession(): AuthSession | null {

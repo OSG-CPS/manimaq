@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.user import UserRole
 from app.schemas.common import TeamSummary
@@ -9,6 +9,39 @@ from app.schemas.common import TeamSummary
 class LoginRequest(BaseModel):
     login: str = Field(min_length=3, max_length=120)
     password: str = Field(min_length=4, max_length=128)
+
+
+class BootstrapStatusResponse(BaseModel):
+    bootstrap_required: bool
+    users_count: int
+
+
+class BootstrapAdminRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    username: str = Field(min_length=3, max_length=50)
+    email: str = Field(min_length=5, max_length=120)
+    password: str = Field(min_length=6, max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def normalize_username(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not normalized:
+            raise ValueError("Usuario invalido")
+        return normalized
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if "@" not in normalized:
+            raise ValueError("Email invalido")
+
+        local_part, domain = normalized.split("@", 1)
+        if not local_part or not domain or "." not in domain:
+            raise ValueError("Email invalido")
+
+        return normalized
 
 
 class UserProfile(BaseModel):
