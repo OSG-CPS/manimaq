@@ -4,6 +4,39 @@ type RequestOptions = RequestInit & {
   skipJsonBody?: boolean;
 };
 
+function extractErrorMessage(data: unknown): string {
+  if (!data || typeof data !== "object") {
+    return "Falha na requisicao.";
+  }
+
+  const detail = (data as { detail?: unknown }).detail;
+  if (typeof detail === "string" && detail.trim()) {
+    return detail;
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const firstItem = detail[0];
+    if (typeof firstItem === "string" && firstItem.trim()) {
+      return firstItem;
+    }
+    if (firstItem && typeof firstItem === "object") {
+      const message = (firstItem as { msg?: unknown }).msg;
+      if (typeof message === "string" && message.trim()) {
+        return message;
+      }
+    }
+  }
+
+  if (detail && typeof detail === "object") {
+    const message = (detail as { msg?: unknown }).msg;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+
+  return "Falha na requisicao.";
+}
+
 export async function fetchApi<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const session = getStoredSession();
   const headers = new Headers(options.headers);
@@ -31,7 +64,7 @@ export async function fetchApi<T>(path: string, options: RequestOptions = {}): P
 
   const data = response.status === 204 ? null : await response.json();
   if (!response.ok) {
-    throw new Error((data as { detail?: string } | null)?.detail ?? "Falha na requisicao.");
+    throw new Error(extractErrorMessage(data));
   }
 
   return data as T;

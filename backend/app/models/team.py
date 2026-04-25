@@ -26,3 +26,4 @@ class Team(Base):
 
     users = relationship("User", back_populates="team")
     equipments = relationship("Equipment", back_populates="team")
+    work_orders = relationship("WorkOrder", back_populates="team")

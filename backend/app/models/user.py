@@ -37,3 +37,5 @@ class User(Base):
     team = relationship("Team", back_populates="users")
     occurrences = relationship("Occurrence", back_populates="author")
     measurements = relationship("Measurement", back_populates="author")
+    created_work_orders = relationship("WorkOrder", back_populates="created_by")
+    work_order_status_updates = relationship("WorkOrderStatusHistory", back_populates="author")

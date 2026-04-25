@@ -30,3 +30,4 @@ class Equipment(Base):
     team = relationship("Team", back_populates="equipments")
     occurrences = relationship("Occurrence", back_populates="equipment")
     measurements = relationship("Measurement", back_populates="equipment")
+    work_orders = relationship("WorkOrder", back_populates="equipment")

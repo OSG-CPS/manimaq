@@ -21,6 +21,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_sprint3_columns()
+    _ensure_sprint4_columns()
 
 
 def _ensure_sprint3_columns() -> None:
@@ -45,3 +46,21 @@ def _ensure_sprint3_columns() -> None:
             if "measured_at" in columns and "measured_at" not in existing_columns:
                 connection.execute(text("ALTER TABLE measurements ADD COLUMN measured_at DATETIME"))
                 connection.execute(text("UPDATE measurements SET measured_at = created_at WHERE measured_at IS NULL"))
+
+
+def _ensure_sprint4_columns() -> None:
+    inspector = inspect(engine)
+
+    with engine.begin() as connection:
+        table_name = "work_order_status_history"
+        if table_name not in inspector.get_table_names():
+            return
+
+        existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+        if "transition_at" not in existing_columns:
+            connection.execute(text("ALTER TABLE work_order_status_history ADD COLUMN transition_at DATETIME"))
+            connection.execute(
+                text(
+                    "UPDATE work_order_status_history SET transition_at = created_at WHERE transition_at IS NULL"
+                )
+            )

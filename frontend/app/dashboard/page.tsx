@@ -63,8 +63,8 @@ export default function DashboardPage() {
 
         <article className="grid-card">
           <h2>Sprint</h2>
-          <p className="metric">SPT3</p>
-          <p className="helper-text">Ocorrencias, medicoes e historico por equipamento agora fazem parte do fluxo.</p>
+          <p className="metric">SPT4</p>
+          <p className="helper-text">Ordens de servico com historico de status agora fazem parte do fluxo.</p>
         </article>
       </section>
 
@@ -75,10 +75,15 @@ export default function DashboardPage() {
           <li>Cadastros de equipes, equipamentos e usuarios com persistencia em SQLite.</li>
           <li>Validacoes de email unico, TAG unica e bloqueio de equipe inativa.</li>
           <li>Fluxos operacionais prontos para registrar ocorrencias e medicoes com autor e data/hora.</li>
+          <li>Ordens de servico podem ser abertas por gestao e executadas pela equipe responsavel com rastreabilidade.</li>
         </ul>
       </section>
 
       <section className="grid-layout">
+        <Link className="grid-card card-link" href="/dashboard/work-orders">
+          <h2>Ordens de Servico</h2>
+          <p className="helper-text">Abrir OS, acompanhar fila da equipe e registrar execucao e conclusao.</p>
+        </Link>
         <Link className="grid-card card-link" href="/dashboard/occurrences">
           <h2>Ocorrencias</h2>
           <p className="helper-text">Registrar falhas, risco a seguranca e parada de producao.</p>
